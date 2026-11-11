@@ -31,6 +31,8 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // não gera AGENTS.md automaticamente no repositório
+  agentRules: false,
   poweredByHeader: false,
   // O backend é um pacote TypeScript do workspace, compilado junto com o Next.
   transpilePackages: ['@orts/backend'],

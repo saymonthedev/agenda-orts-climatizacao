@@ -9,9 +9,18 @@ const SESSION_COOKIES = ['__Host-orts_session', 'orts_session'];
  */
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  if (pathname === '/admin/login') return NextResponse.next();
-
   const hasSession = SESSION_COOKIES.some((name) => request.cookies.has(name));
+
+  if (pathname === '/admin/login') {
+    // Já conectado: segue para o painel (um cookie inválido é removido pelo backend no 401).
+    if (!hasSession) return NextResponse.next();
+    const url = request.nextUrl.clone();
+    const next = request.nextUrl.searchParams.get('next');
+    url.pathname = next && next.startsWith('/admin') && !next.startsWith('//') ? next.split('?')[0]! : '/admin';
+    url.search = '';
+    return NextResponse.redirect(url);
+  }
+
   if (hasSession) return NextResponse.next();
 
   const url = request.nextUrl.clone();
