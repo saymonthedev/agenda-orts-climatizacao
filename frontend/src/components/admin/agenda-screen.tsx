@@ -322,15 +322,21 @@ function TimeGrid({
               type="button"
               onClick={() => onPickDay(d)}
               className={cn('flex flex-col items-center gap-0.5 border-l border-line py-2.5 text-center hover:bg-champagne-100/60', d === today && 'bg-champagne-100')}
-              aria-label={`Ver ${formatLongDate(d)}`}
             >
               <span className={cn('text-[11px] font-semibold uppercase tracking-wide', d === today ? 'text-champagne-700' : 'text-subtle')}>{formatWeekdayShort(d)}</span>
               <span className={cn('tabular text-[17px] font-semibold', d === today ? 'text-ink' : 'text-ink-soft')}>{Number(d.slice(8))}</span>
+              <span className="sr-only">, ver o dia {formatLongDate(d)}</span>
             </button>
           ))}
         </div>
       )}
-      <div className="scrollbar-thin max-h-[calc(100dvh-260px)] min-h-[420px] overflow-y-auto" aria-busy={loading}>
+      <div
+        className="scrollbar-thin max-h-[calc(100dvh-260px)] min-h-[420px] overflow-y-auto"
+        aria-busy={loading}
+        role="region"
+        aria-label="Linha do tempo da agenda"
+        tabIndex={0}
+      >
         <div className="relative grid" style={{ gridTemplateColumns: `3.25rem repeat(${days.length}, minmax(0, 1fr))`, height }}>
           <div className="relative" aria-hidden="true">
             {hours.map((h) => (
@@ -564,7 +570,7 @@ function MonthView({
                 <span
                   className={cn(
                     'tabular inline-flex size-7 items-center justify-center self-start rounded-full text-[13px] font-semibold',
-                    outside ? 'text-subtle/70' : 'text-ink-soft',
+                    outside ? 'text-subtle' : 'text-ink-soft',
                     d === today && 'bg-navy-900 text-porcelain',
                   )}
                 >

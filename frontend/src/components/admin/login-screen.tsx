@@ -71,7 +71,7 @@ export function LoginScreen() {
             Atendimentos, horários e clientes da ORTS Climatização em um só lugar, no computador ou no celular.
           </p>
         </div>
-        <p className="text-[13px] text-porcelain/45">
+        <p className="text-[13px] text-porcelain/70">
           Desenvolvido por{' '}
           <a href={DEVELOPER.url} target="_blank" rel="noopener" className="text-porcelain/65 hover:text-porcelain">
             {DEVELOPER.name}
@@ -133,7 +133,7 @@ export function LoginScreen() {
                 Entrar
               </Button>
             </form>
-            <p className="mt-8 text-[13px] leading-relaxed text-subtle">
+            <p className="mt-8 text-[13px] leading-relaxed text-muted">
               Esqueceu a senha? Peça a redefinição ao responsável técnico do sistema.
             </p>
           </div>

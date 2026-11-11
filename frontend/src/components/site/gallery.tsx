@@ -53,11 +53,10 @@ export function Gallery() {
                 type="button"
                 onClick={() => open(i)}
                 className="group absolute inset-0 overflow-hidden bg-line text-left outline-offset-4"
-                aria-label={`Ampliar foto: ${item.caption}`}
               >
                 <Image
                   src={item.src}
-                  alt={item.alt}
+                  alt=""
                   fill
                   sizes={i < 2 || i > 3 ? '(min-width: 1024px) 50vw, 100vw' : '(min-width: 1024px) 45vw, 50vw'}
                   className="object-cover transition-transform duration-[900ms] ease-out group-hover:scale-[1.035]"
@@ -68,6 +67,7 @@ export function Gallery() {
                 </span>
                 <span className="absolute inset-x-3 bottom-3 flex items-end justify-between gap-3 text-porcelain sm:inset-x-4 sm:bottom-4">
                   <span className="max-w-[26rem] text-[13px] font-medium leading-snug max-sm:line-clamp-2 sm:text-[15px]">{item.caption}</span>
+                  <span className="sr-only"> — ampliar foto</span>
                   <Expand aria-hidden="true" className="hidden size-4 shrink-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100 sm:block" />
                 </span>
               </button>

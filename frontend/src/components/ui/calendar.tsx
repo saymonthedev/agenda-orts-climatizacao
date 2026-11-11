@@ -131,7 +131,7 @@ export function Calendar({ value, onChange, markers, min, className, autoFocus }
                     }}
                     className={cn(
                       'tabular relative flex size-10 flex-col items-center justify-center rounded-md text-[14px] transition-colors',
-                      outside ? 'text-subtle/70' : 'text-ink',
+                      outside ? 'text-subtle' : 'text-ink',
                       !selected && 'hover:bg-champagne-100',
                       isToday && !selected && 'font-bold text-champagne-700 ring-1 ring-inset ring-champagne-400',
                       selected && 'bg-navy-900 font-semibold text-porcelain',

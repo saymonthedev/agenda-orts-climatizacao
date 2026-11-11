@@ -45,7 +45,7 @@ export function About() {
             {differentiators.map((item, i) => (
               <div key={item.title} className="border-t border-line-strong pt-5" data-reveal style={{ ['--reveal-delay' as string]: `${i * 70}ms` }}>
                 <dt className="flex items-baseline gap-3 text-[17px] font-semibold text-ink">
-                  <span className="serif-accent text-base text-champagne-600">{String(i + 1).padStart(2, '0')}</span>
+                  <span className="serif-accent text-base text-champagne-700">{String(i + 1).padStart(2, '0')}</span>
                   {item.title}
                 </dt>
                 <dd className="mt-2 text-[15px] leading-relaxed text-muted">{item.text}</dd>

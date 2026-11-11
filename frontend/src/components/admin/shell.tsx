@@ -139,9 +139,9 @@ function Sidebar({ name, username }: { name: string; username: string }) {
             <LogOut className="size-[18px]" aria-hidden="true" />
           </button>
         </div>
-        <p className="mt-4 text-[11px] text-porcelain/35">
+        <p className="mt-4 text-[11px] text-porcelain/60">
           Desenvolvido por{' '}
-          <a href={DEVELOPER.url} target="_blank" rel="noopener" className="hover:text-porcelain/70">
+          <a href={DEVELOPER.url} target="_blank" rel="noopener" className="hover:text-porcelain">
             {DEVELOPER.name}
           </a>
         </p>
