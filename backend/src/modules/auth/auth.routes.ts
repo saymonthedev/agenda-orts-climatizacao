@@ -1,10 +1,10 @@
 import { Hono } from 'hono';
-import { loginSchema } from '../../contracts/auth';
+import { changePasswordSchema, loginSchema } from '../../contracts/auth';
 import { clearSessionCookie, readSessionToken, writeSessionCookie } from '../../http/cookies';
 import { requireAuth } from '../../http/middleware/require-auth';
 import type { AppEnv } from '../../http/types';
 import { parseJson } from '../../http/validate';
-import { login } from './auth.service';
+import { changePassword, login } from './auth.service';
 import { invalidateSession } from './session.service';
 
 function clientIp(headers: (name: string) => string | undefined): string {
@@ -27,4 +27,9 @@ export const authRoutes = new Hono<AppEnv>()
     clearSessionCookie(c);
     return c.json({ ok: true });
   })
-  .get('/me', requireAuth, (c) => c.json({ user: c.var.user }));
+  .get('/me', requireAuth, (c) => c.json({ user: c.var.user }))
+  .post('/password', requireAuth, async (c) => {
+    const input = await parseJson(c, changePasswordSchema);
+    await changePassword(c.var.db, c.var.user.id, c.var.sessionId, input);
+    return c.json({ ok: true });
+  });

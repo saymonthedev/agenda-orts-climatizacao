@@ -5,22 +5,15 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1794431333875,
+      "when": 1794432676397,
       "tag": "0000_initial_schema",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1794431337859,
+      "when": 1794432677087,
       "tag": "0001_constraints_and_defaults",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1794432017664,
-      "tag": "0002_public_profile",
       "breakpoints": true
     }
   ]

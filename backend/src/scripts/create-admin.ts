@@ -1,17 +1,22 @@
 /**
- * Configuração inicial segura da conta administrativa (não existe cadastro público).
+ * Configuração da conta administrativa pela linha de comando (não existe cadastro público).
  *
- *   npm run admin:create -- --email dono@empresa.com --name "Nome do proprietário"
- *   npm run admin:create -- --email dono@empresa.com --reset      (redefine a senha)
+ *   npm run admin:create -- --username rafael.souza --name "Rafael Souza"
+ *   npm run admin:create -- --username rafael.souza --reset      (redefine a senha)
  *
- * A senha é digitada sem eco no terminal. Em ambientes não interativos,
- * use a variável ADMIN_PASSWORD (nunca passe a senha como argumento).
+ * A senha é digitada sem eco no terminal. Em ambientes não interativos, use a
+ * variável ADMIN_PASSWORD (nunca passe a senha como argumento de linha de comando).
+ * Alternativa sem terminal: defina ADMIN_USERNAME e ADMIN_PASSWORD no ambiente e
+ * rode `npm run db:migrate` — a conta é criada se ainda não houver nenhuma.
  */
-import { count, eq, sql } from 'drizzle-orm';
-import { z } from 'zod';
+import '../config/load-env';
+import { count, eq } from 'drizzle-orm';
+import { PASSWORD_MIN_LENGTH, usernameSchema } from '../contracts/auth';
 import { getDb } from '../database/client';
 import { sessions, users } from '../database/schema';
 import { hashPassword } from '../lib/crypto';
+import { displayNameFromUsername } from '../modules/auth/bootstrap';
+import { findUserByUsername } from '../modules/auth/auth.service';
 import { ask, askHidden } from './prompt';
 
 function arg(name: string): string | undefined {
@@ -22,26 +27,22 @@ function arg(name: string): string | undefined {
 }
 const flag = (name: string) => process.argv.includes(`--${name}`);
 
-const emailSchema = z.string().trim().toLowerCase().pipe(z.email());
-
-function validatePassword(password: string, email: string): string | null {
-  if (password.length < 10) return 'A senha precisa ter pelo menos 10 caracteres.';
+function validatePassword(password: string): string | null {
+  if (password.length < PASSWORD_MIN_LENGTH) return `A senha precisa ter pelo menos ${PASSWORD_MIN_LENGTH} caracteres.`;
   if (password.length > 200) return 'A senha é longa demais.';
-  if (password.toLowerCase().includes(email.split('@')[0]!.toLowerCase())) return 'A senha não pode conter o e-mail.';
-  if (!/[a-zA-Z]/.test(password) || !/\d/.test(password)) return 'Use letras e números na senha.';
   return null;
 }
 
-async function readPassword(email: string): Promise<string> {
+async function readPassword(): Promise<string> {
   const fromEnv = process.env.ADMIN_PASSWORD;
   if (fromEnv) {
-    const problem = validatePassword(fromEnv, email);
+    const problem = validatePassword(fromEnv);
     if (problem) throw new Error(problem);
     return fromEnv;
   }
   for (;;) {
-    const password = await askHidden('Senha (mín. 10 caracteres, letras e números): ');
-    const problem = validatePassword(password, email);
+    const password = await askHidden(`Senha (mín. ${PASSWORD_MIN_LENGTH} caracteres): `);
+    const problem = validatePassword(password);
     if (problem) {
       console.log(`  ${problem}`);
       continue;
@@ -57,32 +58,29 @@ async function readPassword(email: string): Promise<string> {
 
 async function main() {
   const db = await getDb();
-  const reset = flag('reset');
-  const emailInput = arg('email') || (await ask('E-mail do administrador: '));
-  const email = emailSchema.parse(emailInput);
+  const username = usernameSchema.parse(arg('username') || process.env.ADMIN_USERNAME || (await ask('Usuário (ex.: rafael.souza): ')));
+  const existing = await findUserByUsername(db, username);
 
-  const [existing] = await db.select().from(users).where(sql`lower(${users.email}) = ${email}`).limit(1);
-
-  if (reset) {
-    if (!existing) throw new Error('Nenhuma conta encontrada com este e-mail.');
-    const passwordHash = await hashPassword(await readPassword(email));
+  if (flag('reset')) {
+    if (!existing) throw new Error('Nenhuma conta encontrada com este usuário.');
+    const passwordHash = await hashPassword(await readPassword());
     await db.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, existing.id));
     await db.delete(sessions).where(eq(sessions.userId, existing.id));
     console.log('Senha redefinida. Sessões anteriores foram encerradas.');
     return;
   }
 
-  if (existing) throw new Error('Já existe uma conta com este e-mail. Use --reset para redefinir a senha.');
+  if (existing) throw new Error('Já existe uma conta com este usuário. Use --reset para redefinir a senha.');
 
-  const [{ total } = { total: 0 }] = await db.select({ total: count() }).from(users);
-  if (Number(total) > 0 && !flag('allow-additional')) {
+  const [row] = await db.select({ total: count() }).from(users);
+  if (Number(row?.total ?? 0) > 0 && !flag('allow-additional')) {
     throw new Error('Já existe uma conta administrativa. Use --allow-additional para criar outra conta.');
   }
 
-  const name = (arg('name') || (await ask('Nome para exibição: '))).trim() || 'Administrador';
-  const passwordHash = await hashPassword(await readPassword(email));
-  await db.insert(users).values({ name, email, passwordHash });
-  console.log(`Conta criada para ${email}. Acesse /admin/login para entrar.`);
+  const name = (arg('name') || process.env.ADMIN_NAME || displayNameFromUsername(username)).trim();
+  const passwordHash = await hashPassword(await readPassword());
+  await db.insert(users).values({ name, username, passwordHash });
+  console.log(`Conta "${username}" criada. Acesse /admin/login para entrar.`);
 }
 
 main()

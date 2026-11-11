@@ -6,9 +6,10 @@ ALTER TABLE "appointments"
   WHERE ("status" <> 'cancelled');--> statement-breakpoint
 
 -- Configuração inicial da agenda (ajustável pelo proprietário no painel).
+-- Endereço informado pelo cliente: apenas o bairro.
 INSERT INTO "schedule_settings" (
   "id", "weekly_hours", "breaks", "default_duration_minutes", "buffer_minutes",
-  "min_advance_minutes", "slot_interval_minutes", "business_name", "confirmation_template"
+  "min_advance_minutes", "slot_interval_minutes", "business_name", "business_address", "confirmation_template"
 ) VALUES (
   1,
   '[
@@ -23,6 +24,7 @@ INSERT INTO "schedule_settings" (
   '[{"start":"12:00","end":"13:30","label":"Almoço"}]'::jsonb,
   90, 30, 60, 30,
   'ORTS Climatização',
+  'Vila Nova, Jaraguá do Sul - SC',
   'Olá, {cliente}! Aqui é da {empresa}. Confirmando seu atendimento de {servico} em {data}, às {horario}, no endereço {endereco}. Qualquer imprevisto, é só responder esta mensagem.'
 ) ON CONFLICT ("id") DO NOTHING;--> statement-breakpoint
 

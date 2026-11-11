@@ -5,11 +5,16 @@
  *   npm run db:migrate:deploy     -> usado no build da Vercel: só roda em produção
  *                                    (ou com RUN_MIGRATIONS=true) e ignora se não houver DATABASE_URL
  */
+import '../config/load-env';
 import { Pool } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-serverless';
+import { drizzle as drizzleHttp } from 'drizzle-orm/neon-http';
+import { neon } from '@neondatabase/serverless';
 import { migrate } from 'drizzle-orm/neon-serverless/migrator';
 import { getEnv } from '../config/env';
-import { createPgliteDb, migratePglite } from './client';
+import { ensureBootstrapAdmin } from '../modules/auth/bootstrap';
+import { createPgliteDb, migratePglite, type Database } from './client';
+import * as schema from './schema';
 import { resolveBackendDir, resolveMigrationsDir } from './paths';
 import path from 'node:path';
 
@@ -38,6 +43,8 @@ async function main() {
     } finally {
       await pool.end();
     }
+    const db = drizzleHttp({ client: neon(env.DATABASE_URL), schema }) as unknown as Database;
+    await reportBootstrap(await ensureBootstrapAdmin(db));
     return;
   }
 
@@ -45,6 +52,12 @@ async function main() {
   const db = await createPgliteDb(dataDir);
   await migratePglite(db);
   console.log(`[migrate] Migrations aplicadas no PGlite local (${dataDir}).`);
+  await reportBootstrap(await ensureBootstrapAdmin(db));
+}
+
+async function reportBootstrap(result: 'created' | 'exists' | 'skipped') {
+  if (result === 'created') console.log('[migrate] Conta administrativa inicial criada a partir de ADMIN_USERNAME.');
+  if (result === 'skipped') console.log('[migrate] ADMIN_USERNAME/ADMIN_PASSWORD não definidos: nenhuma conta criada automaticamente.');
 }
 
 main().catch((err) => {

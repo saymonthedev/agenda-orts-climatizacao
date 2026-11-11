@@ -4,13 +4,13 @@ import { users } from '../src/database/schema';
 import { addDaysToDate, todayIn, weekdayOfDate } from '../src/domain/time';
 import { hashPassword } from '../src/lib/crypto';
 
-export const ADMIN = { email: 'dono@orts.test', password: 'SenhaForte2026', name: 'Proprietário' };
+export const ADMIN = { username: 'dono.orts', password: 'Teste@2026', name: 'Proprietário' };
 export const ORIGIN = 'http://localhost';
 
 export async function setupTestApp() {
   const db: Database = await createPgliteDb();
   await migratePglite(db);
-  await db.insert(users).values({ name: ADMIN.name, email: ADMIN.email, passwordHash: await hashPassword(ADMIN.password) });
+  await db.insert(users).values({ name: ADMIN.name, username: ADMIN.username, passwordHash: await hashPassword(ADMIN.password) });
   const app = createApp({ db });
 
   const request = (path: string, init: RequestInit & { cookie?: string; json?: unknown } = {}) => {
@@ -25,8 +25,8 @@ export async function setupTestApp() {
     return app.request(`/api${path}`, { ...init, headers, body });
   };
 
-  const login = async (email = ADMIN.email, password = ADMIN.password, ip = '10.0.0.1') => {
-    const res = await request('/auth/login', { method: 'POST', json: { email, password }, headers: { 'x-forwarded-for': ip } });
+  const login = async (username = ADMIN.username, password = ADMIN.password, ip = '10.0.0.1') => {
+    const res = await request('/auth/login', { method: 'POST', json: { username, password }, headers: { 'x-forwarded-for': ip } });
     const setCookie = res.headers.get('set-cookie') ?? '';
     const cookie = setCookie.split(';')[0] ?? '';
     return { res, cookie };

@@ -8,7 +8,7 @@ export const EMPTY_PUBLIC_PROFILE: PublicProfileDTO = {
   whatsapp: null,
   phone: null,
   email: null,
-  address: null,
+  address: 'Vila Nova, Jaraguá do Sul - SC',
   serviceArea: null,
   instagramUrl: null,
   hours: null,

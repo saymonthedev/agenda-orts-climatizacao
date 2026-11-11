@@ -40,6 +40,8 @@ CREATE TABLE "schedule_settings" (
 	"business_email" text,
 	"business_address" text,
 	"service_area" text,
+	"instagram_url" text,
+	"show_hours_on_site" boolean DEFAULT false NOT NULL,
 	"confirmation_template" text NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "schedule_settings_singleton" CHECK ("schedule_settings"."id" = 1)
@@ -69,7 +71,7 @@ CREATE TABLE "sessions" (
 CREATE TABLE "users" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" text NOT NULL,
-	"email" text NOT NULL,
+	"username" text NOT NULL,
 	"password_hash" text NOT NULL,
 	"last_login_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -85,4 +87,4 @@ CREATE INDEX "login_attempts_key_time_idx" ON "login_attempts" USING btree ("key
 CREATE UNIQUE INDEX "service_types_name_unique" ON "service_types" USING btree (lower("name"));--> statement-breakpoint
 CREATE INDEX "sessions_user_idx" ON "sessions" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "sessions_expires_idx" ON "sessions" USING btree ("expires_at");--> statement-breakpoint
-CREATE UNIQUE INDEX "users_email_unique" ON "users" USING btree (lower("email"));
+CREATE UNIQUE INDEX "users_username_unique" ON "users" USING btree (lower("username"));

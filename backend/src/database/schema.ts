@@ -30,12 +30,12 @@ export const users = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     name: text('name').notNull(),
-    email: text('email').notNull(),
+    username: text('username').notNull(),
     passwordHash: text('password_hash').notNull(),
     lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
     ...timestamps,
   },
-  (t) => [uniqueIndex('users_email_unique').on(sql`lower(${t.email})`)],
+  (t) => [uniqueIndex('users_username_unique').on(sql`lower(${t.username})`)],
 );
 
 /** Sessões persistentes. O id é o SHA-256 do token (o token em si nunca é salvo). */

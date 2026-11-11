@@ -1,4 +1,4 @@
-import { eq, lt } from 'drizzle-orm';
+import { and, eq, lt, ne } from 'drizzle-orm';
 import type { SessionUser } from '../../contracts/auth';
 import { getEnv, isProduction } from '../../config/env';
 import type { Database } from '../../database/client';
@@ -39,7 +39,7 @@ export async function validateSession(db: Database, token: string | undefined | 
       expiresAt: sessions.expiresAt,
       userId: users.id,
       name: users.name,
-      email: users.email,
+      username: users.username,
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
@@ -63,7 +63,7 @@ export async function validateSession(db: Database, token: string | undefined | 
   }
 
   return {
-    user: { id: row.userId, name: row.name, email: row.email },
+    user: { id: row.userId, name: row.name, username: row.username },
     sessionId: id,
     expiresAt,
     renewed,
@@ -73,6 +73,11 @@ export async function validateSession(db: Database, token: string | undefined | 
 export async function invalidateSession(db: Database, token: string | undefined | null) {
   if (!token) return;
   await db.delete(sessions).where(eq(sessions.id, sha256(token)));
+}
+
+/** Encerra todas as sessões do usuário, exceto a atual (após troca de senha). */
+export async function invalidateOtherSessions(db: Database, userId: string, keepSessionId: string) {
+  await db.delete(sessions).where(and(eq(sessions.userId, userId), ne(sessions.id, keepSessionId)));
 }
 
 export async function purgeExpiredSessions(db: Database) {

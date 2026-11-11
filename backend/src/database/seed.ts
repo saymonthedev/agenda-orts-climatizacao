@@ -2,6 +2,7 @@
  * Dados de demonstração para desenvolvimento local (nunca em produção).
  *   npm run db:seed
  */
+import '../config/load-env';
 import { getEnv } from '../config/env';
 import { addDaysToDate, todayIn } from '../domain/time';
 import { createAppointment } from '../modules/appointments/appointments.service';

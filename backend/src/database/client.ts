@@ -40,6 +40,8 @@ async function createDb(): Promise<Database> {
   logger.info('Usando PGlite local para desenvolvimento', { dataDir });
   const db = await createPgliteDb(dataDir);
   await migratePglite(db);
+  const { ensureBootstrapAdmin } = await import('../modules/auth/bootstrap');
+  await ensureBootstrapAdmin(db);
   return db;
 }
 

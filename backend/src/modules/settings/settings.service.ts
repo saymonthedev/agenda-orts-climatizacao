@@ -17,6 +17,7 @@ const DEFAULT_ROW = {
     end: weekday === 6 ? '12:00' : '18:00',
   })),
   breaks: [{ start: '12:00', end: '13:30', label: 'Almoço' }],
+  businessAddress: 'Vila Nova, Jaraguá do Sul - SC',
   confirmationTemplate:
     'Olá, {cliente}! Aqui é da {empresa}. Confirmando seu atendimento de {servico} em {data}, às {horario}, no endereço {endereco}.',
 };

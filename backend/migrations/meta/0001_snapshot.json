@@ -1,6 +1,6 @@
 {
-  "id": "77b4f670-1d01-4600-ab9f-dbd92ea2b739",
-  "prevId": "942a408e-381e-4334-aa9c-c68beb36efa2",
+  "id": "ae959752-fbad-4259-be31-f9feae70c1a6",
+  "prevId": "c5ff905e-4001-4c60-b199-349ada3984e1",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -342,6 +342,19 @@
           "primaryKey": false,
           "notNull": false
         },
+        "instagram_url": {
+          "name": "instagram_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "show_hours_on_site": {
+          "name": "show_hours_on_site",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "confirmation_template": {
           "name": "confirmation_template",
           "type": "text",
@@ -569,8 +582,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "email": {
-          "name": "email",
+        "username": {
+          "name": "username",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -603,11 +616,11 @@
         }
       },
       "indexes": {
-        "users_email_unique": {
-          "name": "users_email_unique",
+        "users_username_unique": {
+          "name": "users_username_unique",
           "columns": [
             {
-              "expression": "lower(\"email\")",
+              "expression": "lower(\"username\")",
               "isExpression": true,
               "asc": true,
               "nulls": "last"
