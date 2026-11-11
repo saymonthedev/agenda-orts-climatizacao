@@ -17,7 +17,7 @@ export function Services() {
     <section id="servicos" className="on-dark relative isolate scroll-mt-16 overflow-hidden bg-navy-950 py-20 text-porcelain sm:py-24 lg:scroll-mt-20 lg:py-32">
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(45%_40%_at_100%_100%,rgb(63_101_120/0.35),transparent_70%)]" />
       <div className="container-page">
-        <div className="grid gap-6 lg:grid-cols-12 lg:items-end" data-reveal>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-end" data-reveal>
           <div className="lg:col-span-7">
             <p className="eyebrow flex items-center gap-3 text-champagne-400">
               <span aria-hidden="true" className="h-px w-8 bg-champagne-400/70" />
@@ -37,7 +37,7 @@ export function Services() {
           onValueChange={setActive}
           orientation={desktop ? 'vertical' : 'horizontal'}
           activationMode="manual"
-          className="mt-12 grid gap-8 lg:mt-16 lg:grid-cols-12 lg:gap-10"
+          className="mt-12 grid grid-cols-1 gap-8 lg:mt-16 lg:grid-cols-12 lg:gap-10"
         >
           <Tabs.List
             aria-label="Serviços da ORTS"
@@ -81,7 +81,7 @@ export function Services() {
                   />
                   <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-navy-950/50 to-transparent" />
                 </div>
-                <div className="mt-8 grid gap-8 md:grid-cols-2">
+                <div className="mt-8 grid grid-cols-1 gap-8 md:grid-cols-2">
                   <div>
                     <h3 className="text-2xl font-semibold tracking-[-0.015em] text-porcelain">{s.title}</h3>
                     <p className="mt-3 text-[16px] leading-relaxed text-porcelain/70">{s.summary}</p>

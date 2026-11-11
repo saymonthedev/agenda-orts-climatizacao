@@ -19,9 +19,40 @@ export function futureWeekday(ahead = 7): string {
   return date.toISOString().slice(0, 10);
 }
 
+/**
+ * Nenhum elemento visível pode passar da tela nem invadir a margem interna do
+ * contêiner da página (o overflow-x: clip do body esconderia a rolagem, mas o
+ * conteúdo ficaria torto). Rolagens horizontais intencionais são ignoradas.
+ */
 export async function noHorizontalOverflow(page: Page) {
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-  expect(overflow, 'a página não deve ter rolagem horizontal').toBeLessThanOrEqual(0);
+  const offenders = await page.evaluate(() => {
+    const vw = document.documentElement.clientWidth;
+    const inScroller = (el: Element) => {
+      for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+        const cs = getComputedStyle(p);
+        if (cs.overflowX === 'auto' || cs.overflowX === 'scroll' || cs.position === 'fixed') return true;
+      }
+      return false;
+    };
+    const out: string[] = [];
+    for (const el of Array.from(document.querySelectorAll('body *'))) {
+      const cs = getComputedStyle(el);
+      if (cs.position === 'fixed' || cs.position === 'absolute' || cs.display === 'none' || cs.visibility === 'hidden') continue;
+      if (cs.overflowX === 'auto' || cs.overflowX === 'scroll') continue;
+      if (el.closest('[aria-hidden="true"], .sr-only')) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width <= 1 || r.height <= 1) continue;
+      const box = el.closest('.container-page');
+      let limit = vw;
+      if (box && box !== el) limit = box.getBoundingClientRect().right - parseFloat(getComputedStyle(box).paddingRight);
+      if ((r.right > limit + 0.5 || r.left < -0.5) && !inScroller(el)) {
+        out.push(`${el.tagName.toLowerCase()}.${String(el.className).split(' ').slice(0, 3).join('.')} [${Math.round(r.left)}–${Math.round(r.right)} / ${Math.round(limit)}]`);
+        if (out.length > 4) break;
+      }
+    }
+    return out;
+  });
+  expect(offenders, `elementos fora da área útil em ${page.viewportSize()?.width}px`).toEqual([]);
 }
 
 /** Abre o seletor de data do formulário e escolhe o dia. */

@@ -4,7 +4,7 @@ import { differentiators, images } from '@/content/site';
 export function About() {
   return (
     <section id="sobre" className="relative scroll-mt-16 bg-porcelain py-20 sm:py-24 lg:scroll-mt-20 lg:py-32">
-      <div className="container-page grid gap-14 lg:grid-cols-12 lg:gap-10">
+      <div className="container-page grid grid-cols-1 gap-14 lg:grid-cols-12 lg:gap-10">
         <div className="lg:sticky lg:top-32 lg:col-span-5 lg:self-start" data-reveal>
           <p className="eyebrow flex items-center gap-3 text-steel-600">
             <span aria-hidden="true" className="h-px w-8 bg-steel-500/60" />
@@ -41,7 +41,7 @@ export function About() {
             </figcaption>
           </figure>
 
-          <dl className="mt-12 grid gap-x-10 gap-y-9 sm:grid-cols-2">
+          <dl className="mt-12 grid grid-cols-1 gap-x-10 gap-y-9 sm:grid-cols-2">
             {differentiators.map((item, i) => (
               <div key={item.title} className="border-t border-line-strong pt-5" data-reveal style={{ ['--reveal-delay' as string]: `${i * 70}ms` }}>
                 <dt className="flex items-baseline gap-3 text-[17px] font-semibold text-ink">

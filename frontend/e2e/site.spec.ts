@@ -14,6 +14,15 @@ test.describe('site institucional', () => {
     await noHorizontalOverflow(page);
   });
 
+  test('layout sem estouro em larguras de 320 a 1440 px', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => document.querySelectorAll('[data-reveal]').forEach((el) => ((el as HTMLElement).dataset.visible = 'true')));
+    for (const width of [320, 360, 375, 390, 412, 430, 450, 480, 540, 600, 768, 820, 1024, 1280, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await noHorizontalOverflow(page);
+    }
+  });
+
   test('não expõe o painel para visitantes', async ({ page, request }) => {
     await page.goto('/admin/agenda');
     await expect(page).toHaveURL(/\/admin\/login\?next=%2Fadmin%2Fagenda/);

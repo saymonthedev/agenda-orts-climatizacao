@@ -13,7 +13,7 @@ export function Location({ profile }: { profile: PublicProfileDTO }) {
   return (
     <section id="atendimento" className="on-dark relative isolate scroll-mt-16 overflow-hidden bg-navy-900 py-20 text-porcelain sm:py-24 lg:scroll-mt-20 lg:py-28">
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(50%_60%_at_0%_0%,rgb(212_193_156/0.12),transparent_70%)]" />
-      <div className="container-page grid gap-12 lg:grid-cols-12 lg:items-center lg:gap-10">
+      <div className="container-page grid grid-cols-1 gap-12 lg:grid-cols-12 lg:items-center lg:gap-10">
         <div className="lg:col-span-5" data-reveal>
           <p className="eyebrow flex items-center gap-3 text-champagne-400">
             <span aria-hidden="true" className="h-px w-8 bg-champagne-400/70" />
@@ -75,7 +75,7 @@ export function Location({ profile }: { profile: PublicProfileDTO }) {
             )}
           </dl>
 
-          <div className="mt-8 flex flex-col gap-3 min-[430px]:flex-row">
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Button asChild variant="primary">
               <a href={mapsDirectionsLink(place)} target="_blank" rel="noopener noreferrer">
                 <Navigation className="size-4" aria-hidden="true" /> Abrir rota

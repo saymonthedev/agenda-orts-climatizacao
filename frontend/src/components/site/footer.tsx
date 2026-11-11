@@ -11,7 +11,7 @@ export function Footer({ profile }: { profile: PublicProfileDTO }) {
   const year = new Date().getFullYear();
   return (
     <footer className="on-dark bg-navy-950 text-porcelain">
-      <div className="container-page grid gap-12 py-16 sm:grid-cols-2 lg:grid-cols-12 lg:gap-8 lg:py-20">
+      <div className="container-page grid grid-cols-1 gap-12 py-16 sm:grid-cols-2 lg:grid-cols-12 lg:gap-8 lg:py-20">
         <div className="sm:col-span-2 lg:col-span-4">
           <LogoStacked variant="negative" className="w-44" />
           <p className="mt-6 max-w-xs text-[15px] leading-relaxed text-porcelain/60">

@@ -13,7 +13,7 @@ export function Hero() {
         className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(55%_60%_at_82%_6%,rgb(212_193_156/0.22),transparent_70%),radial-gradient(50%_55%_at_0%_100%,rgb(63_101_120/0.45),transparent_72%)]"
       />
 
-      <div className="container-page grid gap-12 pb-14 pt-28 sm:pt-32 lg:min-h-[min(100svh,960px)] lg:grid-cols-12 lg:items-center lg:gap-10 lg:pb-20 lg:pt-28">
+      <div className="container-page grid grid-cols-1 gap-12 pb-14 pt-28 sm:pt-32 lg:min-h-[min(100svh,960px)] lg:grid-cols-12 lg:items-center lg:gap-10 lg:pb-20 lg:pt-28">
         <div className="lg:col-span-6 xl:col-span-6">
           <p className="eyebrow flex items-center gap-3 text-champagne-400">
             <span aria-hidden="true" className="h-px w-8 bg-champagne-400/70" />
@@ -26,7 +26,7 @@ export function Hero() {
             Instalação, higienização e manutenção preventiva em Jaraguá do Sul, com horário marcado, acabamento limpo e
             atendimento direto pelo WhatsApp.
           </p>
-          <div className="mt-9 flex flex-col gap-3 min-[430px]:flex-row">
+          <div className="mt-9 flex flex-col gap-3 sm:flex-row">
             <RequestButton size="lg">Solicitar atendimento</RequestButton>
             <Button asChild variant="outline-light" size="lg">
               <a href="#servicos">

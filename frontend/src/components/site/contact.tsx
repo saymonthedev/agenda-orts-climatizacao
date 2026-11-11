@@ -42,7 +42,7 @@ export function Contact({ profile }: { profile: PublicProfileDTO }) {
   const hasChannels = Boolean(profile.whatsapp || profile.phone || profile.email || profile.instagramUrl);
   return (
     <section id="contato" className="scroll-mt-16 bg-champagne-100 py-20 sm:py-24 lg:scroll-mt-20 lg:py-32">
-      <div className="container-page grid gap-12 lg:grid-cols-12 lg:gap-10">
+      <div className="container-page grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-10">
         <div className="lg:sticky lg:top-32 lg:col-span-5 lg:self-start" data-reveal>
           <p className="eyebrow flex items-center gap-3 text-champagne-700">
             <span aria-hidden="true" className="h-px w-8 bg-champagne-600/60" />

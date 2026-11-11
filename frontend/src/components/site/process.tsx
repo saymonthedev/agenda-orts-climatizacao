@@ -17,7 +17,7 @@ export function Process() {
           </div>
         </div>
 
-        <ol className="mt-14 grid border-t border-line-strong sm:grid-cols-2 lg:grid-cols-4">
+        <ol className="mt-14 grid grid-cols-1 border-t border-line-strong sm:grid-cols-2 lg:grid-cols-4">
           {processSteps.map((step, i) => (
             <li
               key={step.title}

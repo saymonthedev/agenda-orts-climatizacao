@@ -134,14 +134,16 @@ export function AppointmentsScreen() {
               ))}
             </div>
             <Segmented
-              label="Ordem"
+              label="Ordem por data"
               hideLabel
               size="sm"
               value={order}
               onChange={setOrder}
+              fullWidth
+              className="lg:w-72"
               options={[
-                { value: 'asc', label: 'Mais antigos primeiro' },
-                { value: 'desc', label: 'Mais recentes primeiro' },
+                { value: 'asc', label: 'Mais antigos' },
+                { value: 'desc', label: 'Mais recentes' },
               ]}
             />
           </div>

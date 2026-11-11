@@ -31,7 +31,7 @@ export function Gallery() {
   return (
     <section id="trabalhos" className="scroll-mt-16 bg-porcelain py-20 sm:py-24 lg:scroll-mt-20 lg:py-32">
       <div className="container-page">
-        <div className="grid gap-6 lg:grid-cols-12 lg:items-end" data-reveal>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-end" data-reveal>
           <div className="lg:col-span-7">
             <p className="eyebrow flex items-center gap-3 text-steel-600">
               <span aria-hidden="true" className="h-px w-8 bg-steel-500/60" />
