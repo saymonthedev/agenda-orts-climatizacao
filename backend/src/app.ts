@@ -37,13 +37,14 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use('*', requestId({ headerName: 'X-Request-Id' }));
   app.use('*', noStore);
   app.use('*', requestGuard);
+  // Verificação de saúde não depende do banco.
+  app.get('/health', (c) => c.json({ ok: true, time: new Date().toISOString() }));
   app.use('*', async (c, next) => {
     c.set('db', await resolveDb());
     c.set('hooks', options.hooks ?? {});
     await next();
   });
 
-  app.get('/health', (c) => c.json({ ok: true, time: new Date().toISOString() }));
   app.route('/auth', authRoutes);
 
   // Rotas privadas: a sessão é validada no backend em toda requisição.
