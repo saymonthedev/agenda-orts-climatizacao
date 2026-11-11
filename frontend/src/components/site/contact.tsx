@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { formatPhone } from '@/lib/format';
 import { telLink, whatsappLink } from '@/lib/links';
 import { InstagramIcon, WhatsAppIcon } from './icons';
-import { RequestForm } from './request-form';
+import { LazyRequestForm } from './lazy-request-form';
 
 function Channel({ href, icon, label, value, external, primary }: { href: string; icon: ReactNode; label: string; value: string; external?: boolean; primary?: boolean }) {
   return (
@@ -80,7 +80,7 @@ export function Contact({ profile }: { profile: PublicProfileDTO }) {
             <h3 className="text-xl font-semibold tracking-[-0.01em]">Solicite seu atendimento</h3>
             <p className="mt-1.5 text-[15px] text-muted">Leva menos de um minuto.</p>
             <div className="mt-7">
-              <RequestForm profile={profile} />
+              <LazyRequestForm profile={profile} />
             </div>
           </div>
         </div>

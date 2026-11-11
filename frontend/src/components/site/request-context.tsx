@@ -1,8 +1,11 @@
 'use client';
 
 import type { PublicProfileDTO } from '@orts/backend/contracts';
+import dynamic from 'next/dynamic';
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
-import { RequestDialog } from './request-dialog';
+
+// O formulário só é baixado quando o visitante pede um atendimento.
+const RequestDialog = dynamic(() => import('./request-dialog').then((m) => m.RequestDialog), { ssr: false });
 
 type RequestContextValue = {
   profile: PublicProfileDTO;
@@ -14,16 +17,18 @@ const RequestContext = createContext<RequestContextValue | null>(null);
 /** Disponibiliza o perfil público e o formulário de solicitação para todo o site. */
 export function SiteProvider({ profile, children }: { profile: PublicProfileDTO; children: ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [serviceId, setServiceId] = useState<string | undefined>();
   const openRequest = useCallback((id?: string) => {
     setServiceId(id);
+    setMounted(true);
     setOpen(true);
   }, []);
   const value = useMemo(() => ({ profile, openRequest }), [profile, openRequest]);
   return (
     <RequestContext.Provider value={value}>
       {children}
-      <RequestDialog open={open} onOpenChange={setOpen} profile={profile} serviceId={serviceId} />
+      {mounted && <RequestDialog open={open} onOpenChange={setOpen} profile={profile} serviceId={serviceId} />}
     </RequestContext.Provider>
   );
 }

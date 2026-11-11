@@ -86,7 +86,7 @@ export function Footer({ profile }: { profile: PublicProfileDTO }) {
       </div>
 
       <div className="border-t border-white/10">
-        <div className="container-page flex flex-col gap-3 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-[13px] text-porcelain/45 sm:flex-row sm:items-center sm:justify-between">
+        <div className="container-page flex flex-col gap-3 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-[13px] text-porcelain/65 sm:flex-row sm:items-center sm:justify-between">
           <p>
             © {year} {profile.businessName}. Todos os direitos reservados.
           </p>
@@ -96,8 +96,8 @@ export function Footer({ profile }: { profile: PublicProfileDTO }) {
             rel="noopener"
             className="group inline-flex items-center gap-1.5 self-start transition-colors hover:text-porcelain/80 sm:self-auto"
           >
-            Desenvolvido por <span className="font-medium text-porcelain/65 group-hover:text-porcelain">{DEVELOPER.name}</span>
-            <ArrowUpRight className="size-3.5 opacity-60" aria-hidden="true" />
+            Desenvolvido por <span className="font-medium text-porcelain/80 group-hover:text-porcelain">{DEVELOPER.name}</span>
+            <ArrowUpRight className="size-3.5 opacity-70" aria-hidden="true" />
           </a>
         </div>
       </div>

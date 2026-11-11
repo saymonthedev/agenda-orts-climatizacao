@@ -7,14 +7,14 @@ import './globals.css';
 const sans = Instrument_Sans({
   subsets: ['latin'],
   variable: '--font-instrument-sans',
-  axes: ['wdth'],
   display: 'swap',
 });
 
+// Usada apenas nos destaques em itálico.
 const serif = Instrument_Serif({
   subsets: ['latin'],
   weight: '400',
-  style: ['italic', 'normal'],
+  style: 'italic',
   variable: '--font-instrument-serif',
   display: 'swap',
 });

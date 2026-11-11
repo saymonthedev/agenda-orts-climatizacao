@@ -1,6 +1,11 @@
-import { formatPhone } from '@orts/backend/contracts';
-
-export { formatPhone };
+/** Formata dígitos de telefone para exibição: (47) 99999-9999. */
+export function formatPhone(digits: string | null | undefined): string {
+  if (!digits) return '';
+  const d = digits.replace(/\D/g, '');
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return d;
+}
 
 const TZ = 'America/Sao_Paulo';
 

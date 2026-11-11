@@ -237,8 +237,7 @@
 
   .display {
     font-weight: 600;
-    letter-spacing: -0.025em;
-    font-stretch: 92%;
+    letter-spacing: -0.03em;
     text-wrap: balance;
   }
 
@@ -247,7 +246,6 @@
     font-style: italic;
     font-weight: 400;
     letter-spacing: -0.01em;
-    font-stretch: 100%;
   }
 
   .tabular {
