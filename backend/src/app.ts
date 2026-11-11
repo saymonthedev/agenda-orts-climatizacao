@@ -5,7 +5,7 @@ import { errorHandler } from './http/error-handler';
 import { noStore } from './http/middleware/no-store';
 import { requestGuard } from './http/middleware/request-guard';
 import { requireAuth } from './http/middleware/require-auth';
-import type { AppEnv } from './http/types';
+import type { AppEnv, AppHooks } from './http/types';
 import { appointmentsRoutes, availabilityRoutes } from './modules/appointments/appointments.routes';
 import { authRoutes } from './modules/auth/auth.routes';
 import { dashboardRoutes } from './modules/dashboard/dashboard.routes';
@@ -17,6 +17,8 @@ export type CreateAppOptions = {
   db?: Database | (() => Promise<Database>);
   /** Prefixo das rotas. Padrão: /api */
   basePath?: string;
+  /** Integrações com quem hospeda a API (ex.: revalidação do Next.js). */
+  hooks?: AppHooks;
 };
 
 /**
@@ -37,6 +39,7 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use('*', requestGuard);
   app.use('*', async (c, next) => {
     c.set('db', await resolveDb());
+    c.set('hooks', options.hooks ?? {});
     await next();
   });
 

@@ -134,6 +134,8 @@ export const scheduleSettings = pgTable(
     businessEmail: text('business_email'),
     businessAddress: text('business_address'),
     serviceArea: text('service_area'),
+    instagramUrl: text('instagram_url'),
+    showHoursOnSite: boolean('show_hours_on_site').notNull().default(false),
     confirmationTemplate: text('confirmation_template').notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

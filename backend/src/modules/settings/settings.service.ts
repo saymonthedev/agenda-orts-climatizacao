@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import type { SettingsDTO } from '../../contracts/settings';
+import type { PublicProfileDTO, SettingsDTO } from '../../contracts/settings';
 import { settingsInputSchema } from '../../contracts/settings';
 import type { Database } from '../../database/client';
 import { scheduleSettings, type SettingsRow } from '../../database/schema';
@@ -47,8 +47,28 @@ export function toSettingsDTO(row: SettingsRow): SettingsDTO {
     businessEmail: row.businessEmail,
     businessAddress: row.businessAddress,
     serviceArea: row.serviceArea,
+    instagramUrl: row.instagramUrl,
+    showHoursOnSite: row.showHoursOnSite,
     confirmationTemplate: row.confirmationTemplate,
     updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+export function toPublicProfile(row: SettingsRow): PublicProfileDTO {
+  return {
+    businessName: row.businessName,
+    whatsapp: row.businessWhatsapp,
+    phone: row.businessPhone,
+    email: row.businessEmail,
+    address: row.businessAddress,
+    serviceArea: row.serviceArea,
+    instagramUrl: row.instagramUrl,
+    hours: row.showHoursOnSite
+      ? [...row.weeklyHours]
+          .filter((d) => d.enabled)
+          .sort((a, b) => a.weekday - b.weekday)
+          .map(({ weekday, start, end }) => ({ weekday, start, end }))
+      : null,
   };
 }
 
@@ -85,6 +105,8 @@ export async function updateSettings(db: Database, input: SettingsParsed): Promi
       businessEmail: input.businessEmail,
       businessAddress: input.businessAddress,
       serviceArea: input.serviceArea,
+      instagramUrl: input.instagramUrl,
+      showHoursOnSite: input.showHoursOnSite,
       confirmationTemplate: input.confirmationTemplate,
       updatedAt: new Date(),
     })

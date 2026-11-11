@@ -8,5 +8,7 @@ export const settingsRoutes = new Hono<AppEnv>()
   .get('/', async (c) => c.json({ settings: toSettingsDTO(await getSettingsRow(c.var.db)) }))
   .put('/', async (c) => {
     const input = await parseJson(c, settingsInputSchema);
-    return c.json({ settings: await updateSettings(c.var.db, input) });
+    const settings = await updateSettings(c.var.db, input);
+    await c.var.hooks.onPublicProfileChanged?.();
+    return c.json({ settings });
   });

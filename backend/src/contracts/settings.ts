@@ -53,6 +53,14 @@ export const settingsInputSchema = z.object({
     .refine((v) => v === null || z.email().safeParse(v).success, 'E-mail inválido.'),
   businessAddress: optionalText(200),
   serviceArea: optionalText(200),
+  instagramUrl: z
+    .string()
+    .trim()
+    .max(200)
+    .nullish()
+    .transform((v) => (v ? v : null))
+    .refine((v) => v === null || /^https:\/\/(www\.)?instagram\.com\/[A-Za-z0-9._]+\/?$/.test(v), 'Informe o link completo do perfil (https://instagram.com/...).'),
+  showHoursOnSite: z.boolean().default(false),
   confirmationTemplate: z
     .string()
     .trim()
@@ -67,6 +75,18 @@ export type SettingsInput = z.input<typeof settingsInputSchema>;
 export type SettingsDTO = z.infer<typeof settingsInputSchema> & {
   timezone: string;
   updatedAt: string;
+};
+
+/** Dados comerciais exibidos no site público (preenchidos pelo proprietário no painel). */
+export type PublicProfileDTO = {
+  businessName: string;
+  whatsapp: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  serviceArea: string | null;
+  instagramUrl: string | null;
+  hours: { weekday: number; start: string; end: string }[] | null;
 };
 
 /** Variáveis aceitas no modelo de mensagem de confirmação. */
