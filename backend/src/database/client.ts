@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import { neon } from '@neondatabase/serverless';
 import { drizzle as drizzleNeonHttp } from 'drizzle-orm/neon-http';
@@ -49,6 +50,7 @@ async function createDb(): Promise<Database> {
 export async function createPgliteDb(dataDir?: string): Promise<Database> {
   const { PGlite } = await import('@electric-sql/pglite');
   const { drizzle } = await import('drizzle-orm/pglite');
+  if (dataDir) fs.mkdirSync(dataDir, { recursive: true });
   const client = dataDir ? new PGlite(dataDir) : new PGlite();
   return drizzle({ client, schema }) as unknown as Database;
 }
