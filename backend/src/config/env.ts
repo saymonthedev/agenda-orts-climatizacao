@@ -7,7 +7,7 @@ const EnvSchema = z.object({
     .trim()
     .optional()
     .transform((v) => (v ? v : undefined)),
-  PGLITE_DATA_DIR: z.string().trim().default('.data/pglite'),
+  PGLITE_DATA_DIR: z.string().trim().default('pglite'),
   SESSION_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(30),
   APP_ORIGIN: z
     .string()

@@ -15,8 +15,7 @@ import { getEnv } from '../config/env';
 import { ensureBootstrapAdmin } from '../modules/auth/bootstrap';
 import { createPgliteDb, migratePglite, type Database } from './client';
 import * as schema from './schema';
-import { resolveBackendDir, resolveMigrationsDir } from './paths';
-import path from 'node:path';
+import { resolveMigrationsDir, resolvePgliteDir } from './paths';
 
 async function main() {
   const deploy = process.argv.includes('--deploy');
@@ -48,7 +47,7 @@ async function main() {
     return;
   }
 
-  const dataDir = path.resolve(resolveBackendDir(), env.PGLITE_DATA_DIR);
+  const dataDir = resolvePgliteDir(env.PGLITE_DATA_DIR);
   const db = await createPgliteDb(dataDir);
   await migratePglite(db);
   console.log(`[migrate] Migrations aplicadas no PGlite local (${dataDir}).`);

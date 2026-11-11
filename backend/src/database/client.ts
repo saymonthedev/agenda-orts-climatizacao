@@ -1,11 +1,10 @@
 import fs from 'node:fs';
-import path from 'node:path';
 import { neon } from '@neondatabase/serverless';
 import { drizzle as drizzleNeonHttp } from 'drizzle-orm/neon-http';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import { getEnv } from '../config/env';
 import { logger } from '../lib/logger';
-import { resolveBackendDir, resolveMigrationsDir } from './paths';
+import { resolveMigrationsDir, resolvePgliteDir } from './paths';
 import * as schema from './schema';
 
 export type Schema = typeof schema;
@@ -37,7 +36,7 @@ async function createDb(): Promise<Database> {
   if (env.NODE_ENV === 'production') {
     throw new Error('DATABASE_URL não configurada no ambiente de produção.');
   }
-  const dataDir = path.resolve(resolveBackendDir(), env.PGLITE_DATA_DIR);
+  const dataDir = resolvePgliteDir(env.PGLITE_DATA_DIR);
   logger.info('Usando PGlite local para desenvolvimento', { dataDir });
   const db = await createPgliteDb(dataDir);
   await migratePglite(db);

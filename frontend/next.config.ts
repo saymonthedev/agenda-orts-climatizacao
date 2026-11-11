@@ -40,7 +40,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ['@electric-sql/pglite'],
   outputFileTracingRoot: workspaceRoot,
   outputFileTracingExcludes: {
-    '*': ['node_modules/@electric-sql/pglite/**', '../node_modules/@electric-sql/pglite/**', '../backend/.data/**'],
+    '*': ['node_modules/@electric-sql/pglite/**', '../node_modules/@electric-sql/pglite/**'],
   },
   turbopack: {
     root: workspaceRoot,

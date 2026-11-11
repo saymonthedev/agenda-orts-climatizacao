@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 /**
@@ -19,3 +20,12 @@ export function resolveBackendDir(): string {
 }
 
 export const resolveMigrationsDir = () => path.join(resolveBackendDir(), 'migrations');
+
+/**
+ * Pasta de dados do PGlite (desenvolvimento local). Fica fora do repositório para
+ * não disparar o recarregamento automático do servidor de desenvolvimento.
+ * Caminhos relativos são resolvidos em ~/.orts-agenda/.
+ */
+export function resolvePgliteDir(configured: string): string {
+  return path.isAbsolute(configured) ? configured : path.join(os.homedir(), '.orts-agenda', configured);
+}
