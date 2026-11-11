@@ -38,7 +38,7 @@ test.describe('site institucional', () => {
 
   test('galeria abre, navega pelo teclado e fecha', async ({ page }) => {
     await page.goto('/#trabalhos');
-    await page.getByRole('button', { name: /Ampliar foto/ }).first().click();
+    await page.getByRole('button', { name: /ampliar foto/i }).first().click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toContainText('1 / 6');
     await page.keyboard.press('ArrowRight');
