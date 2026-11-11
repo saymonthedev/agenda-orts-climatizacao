@@ -35,7 +35,8 @@ async function main() {
   }
 
   if (env.DATABASE_URL) {
-    const pool = new Pool({ connectionString: env.DATABASE_URL });
+    // Migrations preferem a conexão direta (sem pooler) quando a integração Neon/Vercel a fornece.
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL_UNPOOLED || env.DATABASE_URL });
     try {
       await migrate(drizzle({ client: pool }), { migrationsFolder: resolveMigrationsDir() });
       console.log('[migrate] Migrations aplicadas no PostgreSQL (Neon).');
