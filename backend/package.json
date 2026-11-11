@@ -1,0 +1,41 @@
+{
+  "name": "@orts/backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "API, regras de negócio e banco de dados do sistema de agendamentos ORTS.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./contracts": "./src/contracts/index.ts"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/database/migrate.ts",
+    "db:migrate:deploy": "tsx src/database/migrate.ts --deploy",
+    "db:seed": "tsx src/database/seed.ts",
+    "db:studio": "drizzle-kit studio",
+    "admin:create": "tsx src/scripts/create-admin.ts"
+  },
+  "dependencies": {
+    "@date-fns/tz": "^1.5.0",
+    "@neondatabase/serverless": "^1.2.0",
+    "date-fns": "^4.4.0",
+    "drizzle-orm": "^0.45.4",
+    "hono": "^4.13.18",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.16",
+    "@hono/node-server": "^2.1.7",
+    "@types/node": "^22.15.0",
+    "drizzle-kit": "^0.31.11",
+    "tsx": "^4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "^5.1.0"
+  }
+}

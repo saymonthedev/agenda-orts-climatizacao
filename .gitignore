@@ -1,0 +1,29 @@
+# dependências
+node_modules/
+
+# builds
+.next/
+out/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# ambiente
+.env
+.env.*
+!.env.example
+
+# banco local (PGlite)
+.data/
+
+# testes
+playwright-report/
+test-results/
+coverage/
+
+# vercel
+.vercel
+
+# sistema
+.DS_Store
+*.log

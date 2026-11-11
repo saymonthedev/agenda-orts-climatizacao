@@ -1,0 +1,253 @@
+import { beforeAll, describe, expect, it } from 'vitest';
+import { futureWeekday, json, setupTestApp } from './helpers';
+
+let t: Awaited<ReturnType<typeof setupTestApp>>;
+let cookie: string;
+let services: Array<{ id: string; name: string; durationMinutes: number; active: boolean }>;
+const MONDAY = futureWeekday(1);
+const TUESDAY = futureWeekday(2);
+const SUNDAY = futureWeekday(0);
+
+const base = () => ({
+  clientName: 'Maria Silva',
+  clientPhone: '(47) 99999-1234',
+  serviceTypeId: services[0]!.id,
+  date: MONDAY,
+  startTime: '08:00',
+  durationMinutes: 90,
+  address: 'Rua Reinoldo Rau, 100',
+  neighborhood: 'Centro',
+});
+
+const create = (body: Record<string, unknown>) => t.request('/appointments', { method: 'POST', cookie, json: body });
+
+beforeAll(async () => {
+  t = await setupTestApp();
+  cookie = (await t.login()).cookie;
+  services = (await json(await t.request('/services', { cookie }))).services;
+});
+
+describe('serviços', () => {
+  it('lista os serviços iniciais com duração', () => {
+    expect(services.length).toBeGreaterThanOrEqual(5);
+    expect(services.every((s) => s.durationMinutes >= 15)).toBe(true);
+  });
+
+  it('cria e edita serviço com validação', async () => {
+    const bad = await t.request('/services', { method: 'POST', cookie, json: { name: 'X', durationMinutes: 5 } });
+    expect(bad.status).toBe(422);
+    const res = await t.request('/services', { method: 'POST', cookie, json: { name: 'Carga de gás', durationMinutes: 60, color: 'clay' } });
+    expect(res.status).toBe(201);
+    const { service } = await json(res);
+    const upd = await t.request(`/services/${service.id}`, { method: 'PATCH', cookie, json: { durationMinutes: 75, active: false } });
+    expect((await json(upd)).service).toMatchObject({ durationMinutes: 75, active: false });
+    const dup = await t.request('/services', { method: 'POST', cookie, json: { name: 'carga de GÁS', durationMinutes: 60 } });
+    expect(dup.status).toBe(409);
+  });
+});
+
+describe('agendamentos', () => {
+  let createdId: string;
+
+  it('cria atendimento normalizando telefone e calculando término', async () => {
+    const res = await create(base());
+    expect(res.status).toBe(201);
+    const { appointment } = await json(res);
+    createdId = appointment.id;
+    expect(appointment).toMatchObject({
+      clientPhone: '47999991234',
+      date: MONDAY,
+      startTime: '08:00',
+      endTime: '09:30',
+      status: 'pending',
+      city: 'Jaraguá do Sul',
+      outsideBusinessHours: false,
+    });
+  });
+
+  it('valida campos obrigatórios com mensagens em português', async () => {
+    const res = await create({ ...base(), clientName: '', clientPhone: '123', startTime: '25:00' });
+    expect(res.status).toBe(422);
+    const body = await json(res);
+    expect(body.error.details.fields).toMatchObject({
+      clientName: expect.any(String),
+      clientPhone: expect.stringContaining('Telefone'),
+      startTime: expect.any(String),
+    });
+  });
+
+  it('impede conflito direto de horário', async () => {
+    const res = await create({ ...base(), clientName: 'João', startTime: '09:00', durationMinutes: 60 });
+    expect(res.status).toBe(409);
+    const body = await json(res);
+    expect(body.error.code).toBe('SCHEDULE_CONFLICT');
+    expect(body.error.details.conflicts[0].clientName).toBe('Maria Silva');
+  });
+
+  it('respeita o intervalo de deslocamento configurado', async () => {
+    const tooClose = await create({ ...base(), clientName: 'Pedro', startTime: '09:30', durationMinutes: 60 });
+    expect(tooClose.status).toBe(409);
+    expect((await json(tooClose)).error.message).toContain('intervalo');
+    const ok = await create({ ...base(), clientName: 'Pedro', startTime: '10:00', durationMinutes: 60 });
+    expect(ok.status).toBe(201);
+  });
+
+  it('bloqueia fora do expediente, mas permite encaixe confirmado', async () => {
+    const closed = await create({ ...base(), date: SUNDAY, clientName: 'Domingo' });
+    expect(closed.status).toBe(422);
+    expect((await json(closed)).error.code).toBe('OUTSIDE_SCHEDULE');
+
+    const lunch = await create({ ...base(), date: TUESDAY, startTime: '12:00', durationMinutes: 60 });
+    expect(lunch.status).toBe(422);
+
+    const forced = await create({ ...base(), date: SUNDAY, clientName: 'Emergência', allowOutsideHours: true });
+    expect(forced.status).toBe(201);
+    expect((await json(forced)).appointment.outsideBusinessHours).toBe(true);
+  });
+
+  it('o encaixe nunca ignora conflitos', async () => {
+    const res = await create({ ...base(), clientName: 'Conflito forçado', startTime: '08:30', allowOutsideHours: true });
+    expect(res.status).toBe(409);
+  });
+
+  it('garante no banco que não há sobreposição, mesmo em requisições simultâneas', async () => {
+    const payload = { ...base(), date: TUESDAY, startTime: '14:00', durationMinutes: 60 };
+    const results = await Promise.all([
+      create({ ...payload, clientName: 'Concorrente A' }),
+      create({ ...payload, clientName: 'Concorrente B' }),
+      create({ ...payload, clientName: 'Concorrente C' }),
+    ]);
+    const statuses = results.map((r) => r.status).sort();
+    expect(statuses).toEqual([201, 409, 409]);
+  });
+
+  it('constraint de exclusão do PostgreSQL bloqueia inserção direta sobreposta', async () => {
+    const { appointments } = await import('../src/database/schema');
+    const s = new Date(`${TUESDAY}T17:30:00.000Z`); // 14:30 em Jaraguá do Sul
+    await expect(
+      t.db.insert(appointments).values({
+        clientName: 'Direto no banco',
+        clientPhone: '47999990000',
+        serviceTypeId: services[0]!.id,
+        startsAt: s,
+        endsAt: new Date(s.getTime() + 30 * 60000),
+        address: 'Rua X',
+        neighborhood: 'Centro',
+      }),
+    ).rejects.toThrow();
+  });
+
+  it('edita e remarca com nova validação de conflito', async () => {
+    const conflict = await t.request(`/appointments/${createdId}`, { method: 'PATCH', cookie, json: { startTime: '10:30' } });
+    expect(conflict.status).toBe(409);
+
+    const res = await t.request(`/appointments/${createdId}`, {
+      method: 'PATCH',
+      cookie,
+      json: { startTime: '15:00', durationMinutes: 120, notes: 'Levar escada', clientName: 'Maria S. Silva' },
+    });
+    expect(res.status).toBe(200);
+    expect((await json(res)).appointment).toMatchObject({
+      startTime: '15:00',
+      endTime: '17:00',
+      notes: 'Levar escada',
+      clientName: 'Maria S. Silva',
+    });
+
+    const clear = await t.request(`/appointments/${createdId}`, { method: 'PATCH', cookie, json: { notes: '' } });
+    expect((await json(clear)).appointment.notes).toBeNull();
+  });
+
+  it('altera status (confirmar, concluir, cancelar e reativar)', async () => {
+    const patch = (status: string) => t.request(`/appointments/${createdId}/status`, { method: 'PATCH', cookie, json: { status } });
+    expect((await json(await patch('confirmed'))).appointment.status).toBe('confirmed');
+    const done = (await json(await patch('completed'))).appointment;
+    expect(done.status).toBe('completed');
+    expect(done.completedAt).toBeTruthy();
+    const cancelled = (await json(await patch('cancelled'))).appointment;
+    expect(cancelled.cancelledAt).toBeTruthy();
+    expect(cancelled.completedAt).toBeNull();
+    expect((await patch('invalido')).status).toBe(422);
+
+    // horário liberado pelo cancelamento pode ser ocupado...
+    const other = await create({ ...base(), clientName: 'Ocupa vaga', startTime: '15:00', durationMinutes: 60 });
+    expect(other.status).toBe(201);
+    // ...e então a reativação do cancelado entra em conflito
+    expect((await patch('pending')).status).toBe(409);
+  });
+
+  it('pesquisa por cliente, telefone e bairro, e filtra por status e datas', async () => {
+    const byName = await json(await t.request(`/appointments?search=${encodeURIComponent('pedro')}`, { cookie }));
+    expect(byName.items.map((a: { clientName: string }) => a.clientName)).toContain('Pedro');
+
+    const byPhone = await json(await t.request('/appointments?search=99999-1234', { cookie }));
+    expect(byPhone.total).toBeGreaterThan(0);
+
+    const wildcard = await json(await t.request(`/appointments?search=${encodeURIComponent('%')}`, { cookie }));
+    expect(wildcard.total).toBe(0);
+
+    const cancelled = await json(await t.request('/appointments?status=cancelled', { cookie }));
+    expect(cancelled.items.every((a: { status: string }) => a.status === 'cancelled')).toBe(true);
+
+    const range = await json(await t.request(`/appointments?from=${TUESDAY}&to=${TUESDAY}`, { cookie }));
+    expect(range.items.every((a: { date: string }) => a.date === TUESDAY)).toBe(true);
+
+    const bad = await t.request('/appointments?status=foo', { cookie });
+    expect(bad.status).toBe(422);
+  });
+
+  it('informa disponibilidade do dia para o seletor de horário', async () => {
+    const res = await t.request(`/availability?date=${MONDAY}&durationMinutes=60`, { cookie });
+    const { availability } = await json(res);
+    expect(availability.open).toBe(true);
+    expect(availability.hours).toEqual({ start: '08:00', end: '18:00' });
+    const state = (time: string) => availability.slots.find((s: { time: string }) => s.time === time)?.state;
+    expect(state('10:00')).toBe('busy');
+    expect(state('12:00')).toBe('break');
+  });
+
+  it('exclui atendimento', async () => {
+    const res = await create({ ...base(), date: TUESDAY, startTime: '16:00', durationMinutes: 60, clientName: 'Excluir' });
+    const { appointment } = await json(res);
+    expect((await t.request(`/appointments/${appointment.id}`, { method: 'DELETE', cookie })).status).toBe(200);
+    expect((await t.request(`/appointments/${appointment.id}`, { cookie })).status).toBe(404);
+    expect((await t.request('/appointments/nao-e-uuid', { cookie })).status).toBe(422);
+  });
+
+  it('monta o resumo do painel', async () => {
+    const { dashboard } = await json(await t.request('/dashboard', { cookie }));
+    expect(dashboard.week.days).toHaveLength(7);
+    expect(dashboard.pendingConfirmation.total).toBeGreaterThan(0);
+    expect(dashboard.next).not.toBeNull();
+    expect(typeof dashboard.month.label).toBe('string');
+  });
+});
+
+describe('configurações', () => {
+  it('altera expediente e a nova regra passa a valer', async () => {
+    const { settings } = await json(await t.request('/settings', { cookie }));
+    expect(settings.weeklyHours).toHaveLength(7);
+
+    const weeklyHours = settings.weeklyHours.map((d: { weekday: number }) => (d.weekday === 0 ? { ...d, enabled: true, start: '09:00', end: '12:00' } : d));
+    const res = await t.request('/settings', {
+      method: 'PUT',
+      cookie,
+      json: { ...settings, weeklyHours, bufferMinutes: 0, businessWhatsapp: '+55 (47) 98888-7777' },
+    });
+    expect(res.status).toBe(200);
+    expect((await json(res)).settings.businessWhatsapp).toBe('47988887777');
+
+    const sunday = await create({ ...base(), date: futureWeekday(0, 14), startTime: '09:00', durationMinutes: 60, clientName: 'Domingo aberto' });
+    expect(sunday.status).toBe(201);
+  });
+
+  it('valida configurações inconsistentes', async () => {
+    const { settings } = await json(await t.request('/settings', { cookie }));
+    const res = await t.request('/settings', {
+      method: 'PUT',
+      cookie,
+      json: { ...settings, breaks: [{ start: '13:00', end: '12:00', label: 'Errada' }], slotIntervalMinutes: 7 },
+    });
+    expect(res.status).toBe(422);
+  });
+});
