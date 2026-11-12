@@ -187,17 +187,20 @@ npm run test:e2e
 ```
 
 - **Backend (45 testes):** regras de agenda e fuso, autenticação, força bruta, CSRF, CRUD, conflitos (inclusive concorrentes e direto no banco), filtros, busca, configurações, autorização em variações de rota.
-- **Ponta a ponta (21 testes, desktop e celular):** site, proteção do painel, fluxo completo de atendimento, configurações, logout e auditoria **axe** (WCAG 2.1 AA) em todas as telas.
+- **Ponta a ponta (12 cenários, rodados em desktop e celular):** site, proteção do painel, fluxo completo de atendimento, configurações, logout, auditoria **axe** (WCAG 2.1 AA) em todas as telas e varredura de 15 larguras (320–1440px) contra qualquer elemento fora da área útil.
 
 ## Deploy (Vercel + Neon)
 
 O projeto **orts-jaragua** na Vercel está ligado a este repositório, com `frontend` como diretório raiz. O `frontend/vercel.json` instala o monorepo, roda as migrations e faz o build. As funções ficam em São Paulo (`gru1`).
 
-Para ligar o banco:
+O banco já está ligado: Neon **orts-jaragua** (São Paulo, `gru1`, plano Free), criado pela integração Neon da Vercel e conectado **só ao ambiente de produção**, com as variáveis marcadas como sensíveis. O primeiro build com o banco aplicou as migrations e criou a conta `rafael.souza`.
 
-1. Na Vercel, abra **orts-jaragua → Storage → Create Database → Neon**, escolha a região **São Paulo (sa-east-1)** e conecte ao projeto. A integração cria `DATABASE_URL` e `DATABASE_URL_UNPOOLED`.
-2. Gere um novo deploy de produção (**Deployments → Redeploy**). O build aplica as migrations e cria a conta `rafael.souza` com `ADMIN_USERNAME`/`ADMIN_PASSWORD`, que já estão configuradas como variáveis de produção.
-3. Depois do primeiro acesso, troque a senha pelo painel e, se quiser, remova `ADMIN_PASSWORD` das variáveis da Vercel.
+Para recriar o banco do zero:
+
+1. Na Vercel, abra **orts-jaragua → Storage → Create Database → Neon**, escolha a região **São Paulo** e conecte só ao ambiente **Production**. A integração cria `DATABASE_URL` e `DATABASE_URL_UNPOOLED`.
+2. Gere um novo deploy de produção (**Deployments → Redeploy**). O build aplica as migrations e, se ainda não houver usuários, cria a conta inicial com `ADMIN_USERNAME`/`ADMIN_PASSWORD` (já configuradas como variáveis de produção).
+
+Depois do primeiro acesso, troque a senha pelo painel (**Configurações → Acesso**) e, se quiser, remova `ADMIN_PASSWORD` das variáveis da Vercel.
 
 Domínio definitivo: adicione-o em **Settings → Domains** e atualize `NEXT_PUBLIC_SITE_URL` e `APP_ORIGIN`.
 
