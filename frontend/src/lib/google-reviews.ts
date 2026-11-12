@@ -108,8 +108,9 @@ function normalize(placeId: string, data: PlaceResponse): GoogleReviews | null {
       relativeTime: r.relativePublishTimeDescription ?? '',
       url: r.googleMapsUri ?? null,
     }))
-    // só avaliações com texto viram cartão; as de só estrelas entram na nota geral
-    .filter((r) => r.text.length > 0);
+    // as com comentário primeiro; as só de estrelas também aparecem (cartão compacto)
+    .sort((a, b) => Number(b.text.length > 0) - Number(a.text.length > 0));
+  console.info(JSON.stringify({ level: 'info', message: 'Avaliações do Google', nota: data.rating ?? null, total, recebidas: reviews.length, comTexto: reviews.filter((r) => r.text).length }));
   const id = encodeURIComponent(placeId);
   return {
     rating: typeof data.rating === 'number' ? data.rating : null,
@@ -154,5 +155,6 @@ const FIXTURE: GoogleReviews = {
       relativeTime: 'há 3 meses',
       url: null,
     },
+    { author: 'Cliente de exemplo D', authorUrl: null, authorPhoto: null, rating: 5, text: '', relativeTime: 'há 4 meses', url: null },
   ],
 };

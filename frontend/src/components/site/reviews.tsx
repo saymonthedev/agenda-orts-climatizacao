@@ -35,9 +35,13 @@ function ReviewCard({ review, index }: { review: GoogleReview; index: number }) 
         <Stars value={review.rating} />
         {review.relativeTime && <span className="text-[13px] text-subtle">{review.relativeTime}</span>}
       </div>
-      <blockquote className="mt-4 flex-1">
-        <p className="line-clamp-6 text-[15px] leading-relaxed text-ink-soft">“{review.text}”</p>
-      </blockquote>
+      {review.text ? (
+        <blockquote className="mt-4 flex-1">
+          <p className="line-clamp-6 text-[15px] leading-relaxed text-ink-soft">“{review.text}”</p>
+        </blockquote>
+      ) : (
+        <p className="mt-4 flex-1 text-[15px] leading-relaxed text-muted">Avaliou o atendimento com {review.rating} {review.rating === 1 ? 'estrela' : 'estrelas'}.</p>
+      )}
       <div className="mt-6 flex items-center gap-3 border-t border-line pt-5">
         {review.authorPhoto ? (
           // foto do autor servida pelo Google (atribuição obrigatória)
