@@ -101,7 +101,7 @@ export function AppointmentsScreen() {
               autoComplete="off"
               spellCheck={false}
               aria-label="Pesquisar atendimentos"
-              placeholder="Buscar por cliente, telefone, endereço, bairro ou serviço"
+              placeholder="Cliente, telefone, bairro ou serviço"
               className="h-12 w-full rounded-md border border-line-strong bg-white pl-10 pr-11 text-[15px] outline-none transition-[border-color,box-shadow] placeholder:text-subtle/80 focus:border-navy-700 focus:shadow-[0_0_0_3px_rgb(191_159_99/0.28)]"
             />
             {term && (
