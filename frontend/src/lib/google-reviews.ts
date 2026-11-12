@@ -61,31 +61,37 @@ export async function getGoogleReviews(): Promise<GoogleReviews | null> {
       if (!res.ok) return warn(res.status);
       return normalize(placeId, (await res.json()) as PlaceResponse);
     }
-    // Sem o ID do lugar: encontra o perfil pelo nome (o mesmo do Google) numa busca só.
-    const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Goog-Api-Key': key,
-        'X-Goog-FieldMask': ['places.id', 'places.displayName', ...FIELDS.split(',').map((f) => `places.${f}`)].join(','),
-      },
-      body: JSON.stringify({ textQuery: process.env.GOOGLE_PLACE_QUERY || 'ORTS Climatização Jaraguá do Sul', languageCode: 'pt-BR', regionCode: 'BR', pageSize: 5 }),
-      next: { revalidate: CACHE_SECONDS },
-    });
-    if (!res.ok) return warn(res.status);
-    const { places = [] } = (await res.json()) as { places?: (PlaceResponse & { id?: string; displayName?: { text?: string } })[] };
-    // só aceita o perfil da ORTS (evita mostrar avaliações de outra empresa)
-    const place = places.find((p) => /\borts\b/i.test(p.displayName?.text ?? ''));
-    if (!place?.id) return warn(404);
-    return normalize(place.id, place);
+    // Sem o ID do lugar: encontra o perfil pelo nome (o mesmo do Google).
+    const queries = [process.env.GOOGLE_PLACE_QUERY || 'ORTS Climatização Jaraguá do Sul', 'ORTS Climatização'];
+    const seen: string[] = [];
+    for (const textQuery of queries) {
+      const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': key,
+          'X-Goog-FieldMask': ['places.id', 'places.displayName', ...FIELDS.split(',').map((f) => `places.${f}`)].join(','),
+        },
+        // a ORTS atende na casa do cliente (sem endereço público): sem esta opção a busca a ignora
+        body: JSON.stringify({ textQuery, languageCode: 'pt-BR', regionCode: 'BR', pageSize: 5, includePureServiceAreaBusinesses: true }),
+        next: { revalidate: CACHE_SECONDS },
+      });
+      if (!res.ok) return warn(res.status);
+      const { places = [] } = (await res.json()) as { places?: (PlaceResponse & { id?: string; displayName?: { text?: string } })[] };
+      seen.push(...places.map((p) => p.displayName?.text ?? '?'));
+      // só aceita o perfil da ORTS (evita mostrar avaliações de outra empresa)
+      const place = places.find((p) => /\borts\b/i.test(p.displayName?.text ?? ''));
+      if (place?.id) return normalize(place.id, place);
+    }
+    return warn(404, { encontrados: seen });
   } catch (err) {
     console.warn(JSON.stringify({ level: 'warn', message: 'Falha ao buscar avaliações do Google', error: err instanceof Error ? err.message : 'erro' }));
     return null;
   }
 }
 
-function warn(status: number): null {
-  console.warn(JSON.stringify({ level: 'warn', message: 'Avaliações do Google indisponíveis', status }));
+function warn(status: number, extra?: Record<string, unknown>): null {
+  console.warn(JSON.stringify({ level: 'warn', message: 'Avaliações do Google indisponíveis', status, ...extra }));
   return null;
 }
 
