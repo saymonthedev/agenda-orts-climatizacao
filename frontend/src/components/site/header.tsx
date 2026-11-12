@@ -68,7 +68,7 @@ export function Header() {
                       'after:absolute after:inset-x-3.5 after:bottom-1.5 after:h-px after:origin-left after:scale-x-0 after:transition-transform after:duration-300',
                       'hover:after:scale-x-100',
                       current && 'after:scale-x-100',
-                      dark ? 'text-porcelain/80 after:bg-champagne-400 hover:text-porcelain' : 'text-ink-soft after:bg-champagne-600 hover:text-ink',
+                      dark ? 'text-porcelain/80 after:bg-champagne-400 hover:text-porcelain' : 'text-ink-soft after:bg-steel-500 hover:text-ink',
                       current && (dark ? 'text-porcelain' : 'text-ink'),
                     )}
                   >
@@ -112,7 +112,7 @@ function MobileMenu({ dark }: { dark: boolean }) {
           className="on-dark fixed inset-0 z-[70] flex flex-col overflow-y-auto bg-navy-950 text-porcelain outline-none data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out lg:hidden"
           aria-describedby={undefined}
         >
-          <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_45%_at_85%_0%,rgb(212_193_156/0.16),transparent_70%)]" />
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_45%_at_85%_0%,rgb(214_197_160/0.16),transparent_70%)]" />
           <div className="container-page relative flex h-16 shrink-0 items-center justify-between">
             <D.Title className="sr-only">Menu</D.Title>
             <LogoHorizontal variant="negative" className="h-7 sm:h-8" />

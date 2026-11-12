@@ -16,20 +16,20 @@ function Channel({ href, icon, label, value, external, primary }: { href: string
         className={
           primary
             ? 'group flex items-center gap-4 rounded-lg bg-navy-900 p-5 text-porcelain transition-colors hover:bg-navy-800'
-            : 'group flex items-center gap-4 border-b border-champagne-300 py-4 text-ink transition-colors hover:border-ink'
+            : 'group flex items-center gap-4 border-b border-steel-200 py-4 text-ink transition-colors hover:border-ink'
         }
       >
         <span
           className={
             primary
               ? 'inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-champagne-400 text-navy-950 [&_svg]:size-5'
-              : 'inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-champagne-400 text-champagne-700 [&_svg]:size-[18px]'
+              : 'inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-steel-300 text-steel-600 [&_svg]:size-[18px]'
           }
         >
           {icon}
         </span>
         <span className="min-w-0 flex-1">
-          <span className={primary ? 'eyebrow block text-[10px] text-champagne-400' : 'eyebrow block text-[10px] text-champagne-700'}>{label}</span>
+          <span className={primary ? 'eyebrow block text-[10px] text-champagne-400' : 'eyebrow block text-[10px] text-steel-600'}>{label}</span>
           <span className="mt-0.5 block truncate text-[17px] font-semibold">{value}</span>
         </span>
         <ArrowUpRight className="size-5 shrink-0 opacity-50 transition-all duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-100" aria-hidden="true" />
@@ -41,15 +41,15 @@ function Channel({ href, icon, label, value, external, primary }: { href: string
 export function Contact({ profile }: { profile: PublicProfileDTO }) {
   const hasChannels = Boolean(profile.whatsapp || profile.phone || profile.email || profile.instagramUrl);
   return (
-    <section id="contato" className="scroll-mt-16 bg-champagne-100 py-20 sm:py-24 lg:scroll-mt-20 lg:py-32">
+    <section id="contato" className="scroll-mt-16 bg-steel-100 py-20 sm:py-24 lg:scroll-mt-20 lg:py-32">
       <div className="container-page grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-10">
         <div className="lg:sticky lg:top-32 lg:col-span-5 lg:self-start" data-reveal>
-          <p className="eyebrow flex items-center gap-3 text-champagne-700">
-            <span aria-hidden="true" className="h-px w-8 bg-champagne-600/60" />
+          <p className="eyebrow flex items-center gap-3 text-steel-600">
+            <span aria-hidden="true" className="h-px w-8 bg-steel-500/60" />
             Contato
           </p>
           <h2 className="display mt-6 text-[2.2rem] leading-[1.05] sm:text-5xl">
-            Vamos deixar o seu ambiente <span className="serif-accent text-champagne-700">no clima certo?</span>
+            Vamos deixar o seu ambiente <span className="serif-accent text-steel-600">no clima certo?</span>
           </h2>
           <p className="mt-6 max-w-md text-[17px] leading-relaxed text-ink-soft">
             Conte o que você precisa e o bairro do atendimento. A ORTS responde pelo WhatsApp para combinar data e horário.
@@ -76,7 +76,7 @@ export function Contact({ profile }: { profile: PublicProfileDTO }) {
         </div>
 
         <div className="lg:col-span-6 lg:col-start-7" data-reveal>
-          <div className="border border-champagne-300 bg-paper p-5 shadow-[0_30px_60px_-40px_rgb(15_24_40/0.35)] sm:p-8 lg:p-10">
+          <div className="border border-steel-200 bg-paper p-5 shadow-[0_30px_60px_-40px_rgb(15_24_40/0.35)] sm:p-8 lg:p-10">
             <h3 className="text-xl font-semibold tracking-[-0.01em]">Solicite seu atendimento</h3>
             <p className="mt-1.5 text-[15px] text-muted">Leva menos de um minuto.</p>
             <div className="mt-7">

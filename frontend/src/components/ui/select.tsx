@@ -90,7 +90,7 @@ export function Select<V extends string>({
                   disabled={option.disabled}
                   className={cn(
                     'relative flex min-h-11 cursor-pointer select-none items-center gap-3 rounded-md py-2 pl-3 pr-9 text-[14px] text-ink outline-none',
-                    'data-[highlighted]:bg-champagne-100 data-[state=checked]:font-semibold data-[disabled]:cursor-not-allowed data-[disabled]:opacity-45',
+                    'data-[highlighted]:bg-steel-100 data-[state=checked]:font-semibold data-[disabled]:cursor-not-allowed data-[disabled]:opacity-45',
                   )}
                 >
                   {option.leading}
@@ -99,7 +99,7 @@ export function Select<V extends string>({
                     {option.description && <span className="text-xs font-normal text-muted">{option.description}</span>}
                   </span>
                   <S.ItemIndicator className="absolute right-3 inline-flex">
-                    <Check className="size-4 text-champagne-700" aria-hidden="true" />
+                    <Check className="size-4 text-steel-600" aria-hidden="true" />
                   </S.ItemIndicator>
                 </S.Item>
               ))}

@@ -160,7 +160,7 @@ export function RequestForm({ profile, initialService, tone = 'paper' }: { profi
             <>
               {' '}
               Enquanto isso, ligue para{' '}
-              <a className="inline-flex items-center gap-1 font-semibold text-ink underline decoration-champagne-500 underline-offset-4" href={telLink(profile.phone)}>
+              <a className="inline-flex items-center gap-1 font-semibold text-ink underline decoration-steel-500 underline-offset-4" href={telLink(profile.phone)}>
                 <Phone className="size-3.5" aria-hidden="true" />
                 {formatPhone(profile.phone)}
               </a>

@@ -175,7 +175,7 @@ function MobileTopBar({ name }: { name: string }) {
                 Conectado como <span className="font-semibold text-ink">{name}</span>
               </DropdownMenu.Label>
               <DropdownMenu.Separator className="my-1 h-px bg-line" />
-              <DropdownMenu.Item asChild className="flex h-11 cursor-pointer items-center gap-2.5 rounded-md px-3 text-[14px] outline-none data-[highlighted]:bg-champagne-100">
+              <DropdownMenu.Item asChild className="flex h-11 cursor-pointer items-center gap-2.5 rounded-md px-3 text-[14px] outline-none data-[highlighted]:bg-steel-100">
                 <a href="/" target="_blank" rel="noopener">
                   <ExternalLink className="size-4 text-muted" aria-hidden="true" /> Ver site
                 </a>
@@ -215,7 +215,7 @@ function BottomBar() {
                   isActive(pathname, item.href) ? 'text-navy-900' : 'text-subtle hover:text-ink',
                 )}
               >
-                <item.icon className={cn('size-[22px]', isActive(pathname, item.href) && 'text-champagne-700')} aria-hidden="true" />
+                <item.icon className={cn('size-[22px]', isActive(pathname, item.href) && 'text-steel-600')} aria-hidden="true" />
                 {item.short}
               </Link>
             </li>

@@ -10,7 +10,7 @@ export function Hero() {
     <section id="inicio" className="on-dark relative isolate overflow-hidden bg-navy-900 text-porcelain">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(55%_60%_at_82%_6%,rgb(212_193_156/0.22),transparent_70%),radial-gradient(50%_55%_at_0%_100%,rgb(63_101_120/0.45),transparent_72%)]"
+        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(55%_60%_at_82%_6%,rgb(214_197_160/0.22),transparent_70%),radial-gradient(60%_65%_at_100%_100%,rgb(87_119_128/0.42),transparent_72%),radial-gradient(55%_60%_at_0%_0%,rgb(65_96_115/0.38),transparent_70%)]"
       />
 
       <div className="container-page grid grid-cols-1 gap-12 pb-14 pt-28 sm:pt-32 lg:min-h-[min(100svh,960px)] lg:grid-cols-12 lg:items-center lg:gap-10 lg:pb-20 lg:pt-28">

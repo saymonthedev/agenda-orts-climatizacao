@@ -15,7 +15,7 @@ export function Services() {
 
   return (
     <section id="servicos" className="on-dark relative isolate scroll-mt-16 overflow-hidden bg-navy-950 py-20 text-porcelain sm:py-24 lg:scroll-mt-20 lg:py-32">
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(45%_40%_at_100%_100%,rgb(63_101_120/0.35),transparent_70%)]" />
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(45%_40%_at_100%_100%,rgb(87_119_128/0.35),transparent_70%)]" />
       <div className="container-page">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-end" data-reveal>
           <div className="lg:col-span-7">

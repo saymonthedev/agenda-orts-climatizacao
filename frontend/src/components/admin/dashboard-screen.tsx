@@ -163,7 +163,7 @@ function NextAppointment({ appointment: a }: { appointment: AppointmentDTO | nul
 
   return (
     <section aria-label="Próximo atendimento" className="on-dark relative isolate overflow-hidden rounded-xl bg-navy-900 text-porcelain">
-      <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[radial-gradient(60%_90%_at_100%_0%,rgb(212_193_156/0.18),transparent_70%)]" />
+      <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[radial-gradient(60%_90%_at_100%_0%,rgb(214_197_160/0.18),transparent_70%)]" />
       <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[1fr_auto] lg:items-center lg:p-7">
         <button type="button" onClick={() => openDetails(a.id)} className="group min-w-0 text-left">
           <p className="eyebrow flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-champagne-400">
@@ -220,7 +220,7 @@ function AppointmentRow({ a, onOpen, trailing }: { a: AppointmentDTO; onOpen: ()
   const now = nowMinutes();
   const current = a.date === todayISO() && minutesOf(a.startTime) <= now && minutesOf(a.endTime) > now && a.status !== 'cancelled';
   return (
-    <li className={cn('flex items-center gap-3 px-4 sm:px-5', current && 'bg-champagne-100/60')}>
+    <li className={cn('flex items-center gap-3 px-4 sm:px-5', current && 'bg-steel-100/60')}>
       <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 py-3.5 text-left">
         <span className="tabular w-12 shrink-0 text-[15px] font-semibold text-ink">{a.startTime}</span>
         <span className={cn('h-9 w-[3px] shrink-0 rounded-full', SERVICE_COLOR[a.serviceType.color])} aria-hidden="true" />

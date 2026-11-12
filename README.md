@@ -5,7 +5,7 @@ Projeto da **ORTS Climatização** (Vila Nova, Jaraguá do Sul/SC) com duas part
 1. **Site institucional** público: apresenta a empresa, os serviços e os trabalhos realizados, e leva o visitante a pedir atendimento pelo WhatsApp.
 2. **Sistema privado de agendamentos** (`/admin`): usado só pelo proprietário para organizar os atendimentos. Visitantes não têm acesso.
 
-- Site: **https://ortsclimatizacao.com.br** (domínio próprio; também responde em https://orts-climatizacao.vercel.app, e o antigo `orts-jaragua.vercel.app` redireciona)
+- Site: **https://ortsclimatizacao.com.br** (domínio próprio; `www`, `orts-climatizacao.vercel.app` e o antigo `orts-jaragua.vercel.app` redirecionam para ele)
 - Painel: **https://ortsclimatizacao.com.br/admin**
 
 ---
@@ -224,7 +224,7 @@ O símbolo da logo (casa, floco de neve, hélice e fluxo de ar) foi vetorizado a
 | `simbolo.svg` / `simbolo-reduzido.svg` | Só o símbolo |
 | `monograma.svg` / `app-icon.svg` | Favicon e ícone de app (telhado + hélice) |
 
-Paleta tirada do medalhão da logo: **azul-marinho** `#1C2B45`, **ardósia** `#3F6578`, **champanhe** `#D4C19C`, **sálvia** `#ABAD92` e **porcelana** `#F4F1EA`. Tipografia: Instrument Sans e Instrument Serif (itálico) no site; Montserrat apenas no logotipo.
+Paleta medida nos pixels do medalhão da logo original: **marinho** `#223049`–`#2F4862`, **aço** `#416073`, **mar** `#577780`, **azul da onda** `#9DBAC2`, **brilho quente** `#D6C5A0`, **prata do aro** `#A5B4B4`/`#DCDAD2` e **sálvia-mar** `#8BA098`. No site, o marinho forma os fundos escuros (com a luz do medalhão: aço no alto, brilho quente à direita e mar embaixo), o brilho quente marca o botão principal e os destaques sobre o escuro, e aço e mar fazem os detalhes sobre os fundos claros. A onda da logo é prata e azul-claro, como na original. Tipografia: Instrument Sans e Instrument Serif (itálico) no site; Montserrat apenas no logotipo.
 
 ## Dados do cliente
 

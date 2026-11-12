@@ -11,7 +11,7 @@ export function About() {
             Sobre a ORTS
           </p>
           <h2 className="display mt-6 text-[2.2rem] leading-[1.05] sm:text-5xl lg:text-[3.35rem]">
-            Climatização feita por quem cuida de <span className="serif-accent text-champagne-600">cada detalhe.</span>
+            Climatização feita por quem cuida de <span className="serif-accent text-steel-500">cada detalhe.</span>
           </h2>
           <div className="mt-8 max-w-[36rem] space-y-5 text-[17px] leading-relaxed text-ink-soft">
             <p>
@@ -45,7 +45,7 @@ export function About() {
             {differentiators.map((item, i) => (
               <div key={item.title} className="border-t border-line-strong pt-5" data-reveal style={{ ['--reveal-delay' as string]: `${i * 70}ms` }}>
                 <dt className="flex items-baseline gap-3 text-[17px] font-semibold text-ink">
-                  <span className="serif-accent text-base text-champagne-700">{String(i + 1).padStart(2, '0')}</span>
+                  <span className="serif-accent text-base text-steel-600">{String(i + 1).padStart(2, '0')}</span>
                   {item.title}
                 </dt>
                 <dd className="mt-2 text-[15px] leading-relaxed text-muted">{item.text}</dd>

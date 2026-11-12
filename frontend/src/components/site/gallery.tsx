@@ -38,7 +38,7 @@ export function Gallery() {
               Trabalhos realizados
             </p>
             <h2 className="display mt-6 text-[2.2rem] leading-[1.05] sm:text-5xl lg:text-[3.35rem]">
-              O cuidado aparece <span className="serif-accent text-champagne-600">no detalhe.</span>
+              O cuidado aparece <span className="serif-accent text-steel-500">no detalhe.</span>
             </h2>
           </div>
           <p className="max-w-md text-[17px] leading-relaxed text-muted lg:col-span-4 lg:col-start-9">

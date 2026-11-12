@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'Instalação, higienização e manutenção de ar-condicionado em Jaraguá do Sul (SC).',
     start_url: '/',
     display: 'standalone',
-    background_color: '#f4f1ea',
-    theme_color: '#111c30',
+    background_color: '#f2f1ec',
+    theme_color: '#1d2b43',
     lang: 'pt-BR',
     icons: [
       { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },

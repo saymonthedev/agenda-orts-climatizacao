@@ -127,7 +127,7 @@ function SettingsTabs({ settings }: { settings: SettingsDTO }) {
           <Tabs.Trigger
             key={t.value}
             value={t.value}
-            className="relative h-11 shrink-0 px-3 text-[14px] font-semibold text-muted transition-colors hover:text-ink data-[state=active]:text-ink data-[state=active]:after:absolute data-[state=active]:after:inset-x-3 data-[state=active]:after:-bottom-px data-[state=active]:after:h-0.5 data-[state=active]:after:bg-champagne-600"
+            className="relative h-11 shrink-0 px-3 text-[14px] font-semibold text-muted transition-colors hover:text-ink data-[state=active]:text-ink data-[state=active]:after:absolute data-[state=active]:after:inset-x-3 data-[state=active]:after:-bottom-px data-[state=active]:after:h-0.5 data-[state=active]:after:bg-steel-500"
           >
             {t.label}
           </Tabs.Trigger>
@@ -384,7 +384,7 @@ function ServiceDialog({ service, onClose }: { service?: ServiceTypeDTO; onClose
                 aria-label={SERVICE_COLOR_LABEL[c]}
                 title={SERVICE_COLOR_LABEL[c]}
                 onClick={() => setColor(c)}
-                className={cn('size-10 rounded-md ring-offset-2 ring-offset-paper transition-shadow', SERVICE_COLOR[c], color === c && 'ring-2 ring-champagne-500')}
+                className={cn('size-10 rounded-md ring-offset-2 ring-offset-paper transition-shadow', SERVICE_COLOR[c], color === c && 'ring-2 ring-steel-500')}
               />
             ))}
           </div>

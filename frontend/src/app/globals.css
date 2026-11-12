@@ -2,48 +2,58 @@
 
 /*
  * Identidade visual ORTS Climatização
- * Paleta derivada do medalhão da logo: azul-marinho profundo, ardósia (aço),
- * brilho champanhe e sálvia — sobre porcelana quente, sem o clichê azul + branco.
+ * Paleta medida nos pixels do medalhão da logo original:
+ *   marinho (#223049 → #2f4862), aço (#416073), mar (#577780), azul da onda (#9dbac2),
+ *   brilho quente (#d6c5a0), prata do aro (#a5b4b4 / #dcdad2) e sálvia-mar (#8ba098).
+ * Cada degrau mantém a luminosidade do anterior, preservando os contrastes AA.
  */
 @theme {
   --font-sans: var(--font-instrument-sans), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-serif: var(--font-instrument-serif), ui-serif, Georgia, serif;
 
-  --color-ink: #0f1828;
-  --color-ink-soft: #2a3445;
+  --color-ink: #121c2a;
+  --color-ink-soft: #2a3542;
   --color-muted: #586274;
   --color-subtle: #666f7e;
 
-  --color-navy-950: #0a1220;
-  --color-navy-900: #111c30;
-  --color-navy-800: #1c2b45;
-  --color-navy-700: #26395a;
-  --color-navy-600: #34496d;
+  /* Marinho do medalhão */
+  --color-navy-950: #141f31;
+  --color-navy-900: #1d2b43;
+  --color-navy-800: #263851;
+  --color-navy-700: #2f4862;
+  --color-navy-600: #3a5672;
 
-  --color-steel-700: #2e4d5d;
-  --color-steel-600: #3f6578;
-  --color-steel-500: #557c8e;
-  --color-steel-400: #7c9dac;
-  --color-steel-300: #9fbcc8;
-  --color-steel-200: #c6d7de;
-  --color-steel-100: #e4edf0;
+  /* Aço → mar (o degradê do medalhão) */
+  --color-steel-700: #33546a;
+  --color-steel-600: #416073;
+  --color-steel-500: #577780;
+  --color-steel-400: #7f9fa3;
+  --color-steel-300: #9dbac2;
+  --color-steel-200: #c8d8db;
+  --color-steel-100: #e5eeee;
 
-  --color-champagne-700: #7d6130;
-  --color-champagne-600: #9c7d45;
-  --color-champagne-500: #bf9f63;
-  --color-champagne-400: #d4c19c;
-  --color-champagne-300: #e3d5b8;
-  --color-champagne-200: #eee5d2;
-  --color-champagne-100: #f7f2e8;
+  /* Brilho quente do medalhão (luz no alto, à direita) */
+  --color-champagne-700: #6d6047;
+  --color-champagne-600: #94845f;
+  --color-champagne-500: #bfab80;
+  --color-champagne-400: #d6c5a0;
+  --color-champagne-300: #e3d7bb;
+  --color-champagne-200: #ede6d4;
+  --color-champagne-100: #f6f2e8;
 
-  --color-sage-600: #67704f;
-  --color-sage-400: #abad92;
-  --color-sage-200: #dfe0d2;
+  /* Sálvia-mar (reflexos do medalhão) */
+  --color-sage-600: #5d766f;
+  --color-sage-400: #8ba098;
+  --color-sage-200: #d6dfd9;
 
-  --color-porcelain: #f4f1ea;
-  --color-paper: #fbfaf7;
-  --color-line: #e3ded3;
-  --color-line-strong: #cec7b8;
+  /* Prata do aro */
+  --color-silver-500: #a5b4b4;
+  --color-silver-300: #dcdad2;
+
+  --color-porcelain: #f2f1ec;
+  --color-paper: #fafaf8;
+  --color-line: #dfddd5;
+  --color-line-strong: #c9c7be;
 
   /* Status da agenda */
   --color-status-pending: #b9862a;
@@ -161,7 +171,7 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-champagne-500);
+    outline: 2px solid var(--color-steel-500);
     outline-offset: 3px;
   }
 

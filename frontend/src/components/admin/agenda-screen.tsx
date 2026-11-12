@@ -218,7 +218,7 @@ function StatusFilter({ hidden, onChange }: { hidden: AppointmentStatus[]; onCha
                     role="checkbox"
                     aria-checked={checked}
                     onClick={() => onChange(checked ? [...hidden, s] : hidden.filter((h) => h !== s))}
-                    className="flex h-11 w-full items-center gap-3 rounded-md px-2 text-[14px] text-ink hover:bg-champagne-100"
+                    className="flex h-11 w-full items-center gap-3 rounded-md px-2 text-[14px] text-ink hover:bg-steel-100"
                   >
                     <span className={cn('inline-flex size-5 items-center justify-center rounded border', checked ? 'border-navy-900 bg-navy-900 text-porcelain' : 'border-line-strong')}>
                       {checked && <Check className="size-3.5" aria-hidden="true" />}
@@ -321,9 +321,9 @@ function TimeGrid({
               key={d}
               type="button"
               onClick={() => onPickDay(d)}
-              className={cn('flex flex-col items-center gap-0.5 border-l border-line py-2.5 text-center hover:bg-champagne-100/60', d === today && 'bg-champagne-100')}
+              className={cn('flex flex-col items-center gap-0.5 border-l border-line py-2.5 text-center hover:bg-steel-100/60', d === today && 'bg-steel-100')}
             >
-              <span className={cn('text-[11px] font-semibold uppercase tracking-wide', d === today ? 'text-champagne-700' : 'text-subtle')}>{formatWeekdayShort(d)}</span>
+              <span className={cn('text-[11px] font-semibold uppercase tracking-wide', d === today ? 'text-steel-600' : 'text-subtle')}>{formatWeekdayShort(d)}</span>
               <span className={cn('tabular text-[17px] font-semibold', d === today ? 'text-ink' : 'text-ink-soft')}>{Number(d.slice(8))}</span>
               <span className="sr-only">, ver o dia {formatLongDate(d)}</span>
             </button>
@@ -394,8 +394,8 @@ function TimeGrid({
                 ))}
                 {d === today && now >= gridStart && now <= gridEnd && (
                   <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 z-20 flex items-center" style={{ top: (now - gridStart) * ppm }}>
-                    <span className="-ml-1 size-2 rounded-full bg-champagne-600" />
-                    <span className="h-[2px] flex-1 bg-champagne-600" />
+                    <span className="-ml-1 size-2 rounded-full bg-steel-500" />
+                    <span className="h-[2px] flex-1 bg-steel-500" />
                   </div>
                 )}
                 {dayItems.map(({ a, lane, lanes }) => {
@@ -481,7 +481,7 @@ function WeekList({
               className={cn(
                 'flex flex-col items-center gap-0.5 rounded-lg border py-2 transition-colors',
                 active ? 'border-navy-900 bg-navy-900 text-porcelain' : 'border-line bg-paper text-ink',
-                d === today && !active && 'border-champagne-500',
+                d === today && !active && 'border-steel-500',
               )}
             >
               <span className={cn('text-[10px] font-semibold uppercase', active ? 'text-champagne-400' : 'text-subtle')}>{formatWeekdayShort(d)}</span>
@@ -560,11 +560,11 @@ function MonthView({
                 aria-label={`${capitalize(formatLongDate(d))}: ${active.length} atendimento${active.length === 1 ? '' : 's'}`}
                 aria-pressed={!desktop ? isSelected : undefined}
                 className={cn(
-                  'flex min-h-16 flex-col items-stretch gap-1 border-line p-1.5 text-left transition-colors hover:bg-champagne-100/50 sm:min-h-24 sm:p-2 lg:min-h-28',
+                  'flex min-h-16 flex-col items-stretch gap-1 border-line p-1.5 text-left transition-colors hover:bg-steel-100/50 sm:min-h-24 sm:p-2 lg:min-h-28',
                   i % 7 !== 0 && 'border-l',
                   i >= 7 && 'border-t',
                   outside && 'bg-ink/[0.02]',
-                  isSelected && 'bg-champagne-100',
+                  isSelected && 'bg-steel-100',
                 )}
               >
                 <span

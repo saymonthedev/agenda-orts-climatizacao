@@ -12,7 +12,7 @@ export function Location({ profile }: { profile: PublicProfileDTO }) {
 
   return (
     <section id="atendimento" className="on-dark relative isolate scroll-mt-16 overflow-hidden bg-navy-900 py-20 text-porcelain sm:py-24 lg:scroll-mt-20 lg:py-28">
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(50%_60%_at_0%_0%,rgb(212_193_156/0.12),transparent_70%)]" />
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(50%_60%_at_0%_0%,rgb(214_197_160/0.12),transparent_70%)]" />
       <div className="container-page grid grid-cols-1 gap-12 lg:grid-cols-12 lg:items-center lg:gap-10">
         <div className="lg:col-span-5" data-reveal>
           <p className="eyebrow flex items-center gap-3 text-champagne-400">

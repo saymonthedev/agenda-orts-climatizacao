@@ -12,7 +12,7 @@ export function Process() {
               Como funciona
             </p>
             <h2 className="display mt-6 max-w-2xl text-[2.2rem] leading-[1.05] sm:text-5xl">
-              Do primeiro contato ao <span className="serif-accent text-champagne-600">ar funcionando.</span>
+              Do primeiro contato ao <span className="serif-accent text-steel-500">ar funcionando.</span>
             </h2>
           </div>
         </div>
@@ -25,8 +25,8 @@ export function Process() {
               style={{ ['--reveal-delay' as string]: `${i * 80}ms` }}
               className="relative border-b border-line py-8 sm:pr-8 sm:[&:nth-child(odd)]:border-r lg:border-b-0 lg:px-8 lg:first:pl-0 lg:[&:not(:last-child)]:border-r"
             >
-              <span aria-hidden="true" className="absolute -top-[5px] left-0 size-2.5 rounded-full border-2 border-paper bg-champagne-500 lg:left-8 lg:first:left-0" />
-              <span className="serif-accent block text-[2.6rem] leading-none text-champagne-600">{String(i + 1).padStart(2, '0')}</span>
+              <span aria-hidden="true" className="absolute -top-[5px] left-0 size-2.5 rounded-full border-2 border-paper bg-steel-500 lg:left-8 lg:first:left-0" />
+              <span className="serif-accent block text-[2.6rem] leading-none text-steel-500">{String(i + 1).padStart(2, '0')}</span>
               <h3 className="mt-5 text-xl font-semibold tracking-[-0.01em] text-ink">{step.title}</h3>
               <p className="mt-2 text-[15px] leading-relaxed text-muted">{step.text}</p>
             </li>

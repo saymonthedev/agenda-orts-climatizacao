@@ -130,7 +130,7 @@ export function AppointmentDetails({ id, onClose, onEdit }: { id: string | null;
             </Button>
             <Button asChild variant="secondary" className="h-auto flex-col gap-1.5 py-3 text-[12px]">
               <a href={mapsDirectionsLink(mapsQueryFor(a))} target="_blank" rel="noopener noreferrer">
-                <Navigation className="size-5 text-champagne-700" aria-hidden="true" />
+                <Navigation className="size-5 text-steel-600" aria-hidden="true" />
                 Rota
               </a>
             </Button>
