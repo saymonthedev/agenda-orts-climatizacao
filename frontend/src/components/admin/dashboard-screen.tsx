@@ -1,7 +1,7 @@
 'use client';
 
 import type { AppointmentDTO, DashboardDTO } from '@orts/backend/contracts';
-import { ArrowRight, CalendarCheck2, CalendarDays, CheckCheck, CircleDashed, Navigation, Plus, Play, XCircle } from 'lucide-react';
+import { AlertTriangle, ArrowRight, CalendarCheck2, CalendarDays, CheckCheck, ChevronRight, CircleDashed, Navigation, Plus, Play, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { WhatsAppIcon } from '@/components/site/icons';
 import { Button, buttonClasses } from '@/components/ui/button';
@@ -9,12 +9,13 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/toast';
 import { Tooltip } from '@/components/ui/tooltip';
-import { useChangeStatus, useDashboard, useMe, useSettings } from '@/hooks/admin/queries';
+import { useChangeStatus, useDashboard, useFinanceSummary, useMe, useSettings } from '@/hooks/admin/queries';
 import { ApiError } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { capitalize, formatLongDate, formatWeekdayShort, minutesOf, nowMinutes, todayISO } from '@/lib/format';
 import { mapsDirectionsLink, whatsappLink } from '@/lib/links';
 import { buildConfirmationMessage, mapsQueryFor } from '@/lib/messages';
+import { formatBRL, formatSignedBRL, monthLabel, monthOf } from '@/lib/money';
 import { useAdminUI } from './admin-ui';
 import { PageHeader } from './shell';
 import { SERVICE_COLOR, ServiceDot, StatusBadge } from './status';
@@ -118,6 +119,8 @@ function DashboardContent({ data }: { data: DashboardDTO }) {
       </section>
 
       <NextAppointment appointment={data.next} />
+
+      <FinanceCard />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
         <TodayList items={today.appointments} />
@@ -403,5 +406,53 @@ function WeekChart({ week }: { week: DashboardDTO['week'] }) {
         </div>
       </div>
     </SectionCard>
+  );
+}
+
+/** Resumo do financeiro do mês no Painel (atalho para a tela Financeiro). */
+function FinanceCard() {
+  const month = monthOf(todayISO());
+  const summary = useFinanceSummary(month);
+  const s = summary.data;
+  const overdue = s ? s.income.overdueCount : 0;
+  return (
+    <Link href="/admin/financeiro" className="group block rounded-lg border border-line bg-paper p-4 transition-colors hover:border-line-strong sm:p-5">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[13px] font-medium text-muted">Financeiro de {monthLabel(month).split(' ')[0]}</p>
+        <span className="flex items-center gap-1 text-[13px] font-semibold text-steel-600 group-hover:text-ink">
+          Abrir <ChevronRight className="size-4" aria-hidden="true" />
+        </span>
+      </div>
+      {s ? (
+        <>
+          <dl className="mt-3 grid grid-cols-3 gap-3">
+            <div>
+              <dt className="flex items-center gap-1.5 text-[12px] text-muted">
+                <span aria-hidden="true" className="size-2 rounded-full bg-fin-in" /> Entradas
+              </dt>
+              <dd className="tabular mt-1 text-[16px] font-semibold text-ink sm:text-[18px]">{formatBRL(s.income.paidCents)}</dd>
+            </div>
+            <div>
+              <dt className="flex items-center gap-1.5 text-[12px] text-muted">
+                <span aria-hidden="true" className="size-2 rounded-full bg-fin-out" /> Saídas
+              </dt>
+              <dd className="tabular mt-1 text-[16px] font-semibold text-ink sm:text-[18px]">{formatBRL(s.expense.paidCents)}</dd>
+            </div>
+            <div>
+              <dt className="text-[12px] text-muted">Resultado</dt>
+              <dd className="tabular mt-1 text-[16px] font-semibold text-ink sm:text-[18px]">{formatSignedBRL(s.resultCents)}</dd>
+            </div>
+          </dl>
+          {s.income.pendingCents > 0 && (
+            <p className={cn('mt-3 flex items-center gap-1.5 text-[13px]', overdue ? 'font-semibold text-status-pending-fg' : 'text-muted')}>
+              {overdue > 0 && <AlertTriangle className="size-3.5" aria-hidden="true" />}A receber: <span className="tabular">{formatBRL(s.income.pendingCents)}</span>
+              {overdue > 0 && ` · ${overdue} vencido${overdue > 1 ? 's' : ''}`}
+            </p>
+          )}
+        </>
+      ) : (
+        <Skeleton className="mt-3 h-12" />
+      )}
+    </Link>
   );
 }

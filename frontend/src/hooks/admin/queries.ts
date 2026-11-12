@@ -7,6 +7,15 @@ import type {
   AppointmentUpdateInput,
   AvailabilityDTO,
   DashboardDTO,
+  FinanceCategoryDTO,
+  FinanceCategoryInput,
+  FinanceCategoryUpdateInput,
+  FinanceEntryDTO,
+  FinanceEntryInput,
+  FinanceEntryUpdateInput,
+  FinanceListDTO,
+  FinanceListQuery,
+  FinanceSummaryDTO,
   Paginated,
   ServiceInput,
   ServiceTypeDTO,
@@ -28,6 +37,10 @@ export const keys = {
   availability: (date: string, duration: number, excludeId?: string) => ['availability', date, duration, excludeId ?? ''] as const,
   services: ['services'] as const,
   settings: ['settings'] as const,
+  finance: ['finance'] as const,
+  financeSummary: (month: string) => ['finance', 'summary', month] as const,
+  financeEntries: (params: object) => ['finance', 'entries', params] as const,
+  financeCategories: ['finance', 'categories'] as const,
 };
 
 export function useMe() {
@@ -122,6 +135,7 @@ function useInvalidateAgenda() {
     qc.invalidateQueries({ queryKey: keys.appointments });
     qc.invalidateQueries({ queryKey: keys.dashboard });
     qc.invalidateQueries({ queryKey: ['availability'] });
+    qc.invalidateQueries({ queryKey: keys.finance });
   };
 }
 
@@ -187,5 +201,77 @@ export function useSaveService() {
 export function useChangePassword() {
   return useMutation({
     mutationFn: (input: { currentPassword: string; newPassword: string }) => api.post<{ ok: true }>('/auth/password', input),
+  });
+}
+
+// ---------- financeiro ----------
+
+function useInvalidateFinance() {
+  const qc = useQueryClient();
+  return () => {
+    qc.invalidateQueries({ queryKey: keys.finance });
+    qc.invalidateQueries({ queryKey: keys.dashboard });
+  };
+}
+
+export function useFinanceSummary(month: string) {
+  return useQuery({
+    queryKey: keys.financeSummary(month),
+    queryFn: ({ signal }) => api.get<{ summary: FinanceSummaryDTO }>(`/finance/summary${query({ month })}`, signal).then((r) => r.summary),
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useFinanceEntries(params: FinanceListQuery, enabled = true) {
+  return useQuery({
+    queryKey: keys.financeEntries(params),
+    queryFn: ({ signal }) => api.get<FinanceListDTO>(`/finance/entries${query(params as Record<string, string | number | undefined>)}`, signal),
+    placeholderData: (previous) => previous,
+    enabled,
+  });
+}
+
+export function useFinanceCategories() {
+  return useQuery({
+    queryKey: keys.financeCategories,
+    queryFn: ({ signal }) => api.get<{ categories: FinanceCategoryDTO[] }>('/finance/categories', signal).then((r) => r.categories),
+    staleTime: 60_000,
+  });
+}
+
+export function useSaveFinanceEntry() {
+  const invalidate = useInvalidateFinance();
+  return useMutation({
+    mutationFn: ({ id, input }: { id?: string; input: FinanceEntryInput | FinanceEntryUpdateInput }) =>
+      (id ? api.patch<{ entry: FinanceEntryDTO }>(`/finance/entries/${id}`, input) : api.post<{ entry: FinanceEntryDTO }>('/finance/entries', input)).then((r) => r.entry),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteFinanceEntry() {
+  const invalidate = useInvalidateFinance();
+  return useMutation({
+    mutationFn: (id: string) => api.delete<{ ok: true }>(`/finance/entries/${id}`),
+    onSuccess: invalidate,
+  });
+}
+
+export function useSaveFinanceCategory() {
+  const invalidate = useInvalidateFinance();
+  return useMutation({
+    mutationFn: ({ id, input }: { id?: string; input: FinanceCategoryInput | FinanceCategoryUpdateInput }) =>
+      (id
+        ? api.patch<{ category: FinanceCategoryDTO }>(`/finance/categories/${id}`, input)
+        : api.post<{ category: FinanceCategoryDTO }>('/finance/categories', input)
+      ).then((r) => r.category),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteFinanceCategory() {
+  const invalidate = useInvalidateFinance();
+  return useMutation({
+    mutationFn: (id: string) => api.delete<{ deleted: boolean; archived: boolean }>(`/finance/categories/${id}`),
+    onSuccess: invalidate,
   });
 }

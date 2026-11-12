@@ -14,6 +14,7 @@ export function toServiceDTO(row: ServiceTypeRow): ServiceTypeDTO {
     color: row.color,
     active: row.active,
     sortOrder: row.sortOrder,
+    priceCents: row.priceCents,
   };
 }
 

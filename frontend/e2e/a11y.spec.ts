@@ -26,7 +26,7 @@ test.describe('acessibilidade (axe)', () => {
     await login(page);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     await audit(page, 'painel');
-    for (const path of ['/admin/agenda?view=week', '/admin/agenda?view=month', '/admin/agenda?view=day', '/admin/atendimentos', '/admin/configuracoes']) {
+    for (const path of ['/admin/agenda?view=week', '/admin/agenda?view=month', '/admin/agenda?view=day', '/admin/atendimentos', '/admin/financeiro', '/admin/configuracoes?aba=financeiro']) {
       await page.goto(path);
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
       await audit(page, path);
@@ -34,5 +34,10 @@ test.describe('acessibilidade (axe)', () => {
     await page.getByRole('button', { name: /Novo agendamento/ }).first().click();
     await expect(page.getByRole('dialog')).toBeVisible();
     await audit(page, 'formulário');
+    await page.keyboard.press('Escape');
+    await page.goto('/admin/financeiro');
+    await page.getByRole('button', { name: 'Nova entrada' }).first().click();
+    await expect(page.getByRole('dialog', { name: 'Novo lançamento' })).toBeVisible();
+    await audit(page, 'lançamento');
   });
 });

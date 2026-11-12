@@ -1,13 +1,14 @@
 'use client';
 
-import { CalendarDays, ExternalLink, LayoutDashboard, ListChecks, LogOut, Plus, Settings, type LucideIcon } from 'lucide-react';
+import { CalendarDays, Ellipsis, ExternalLink, LayoutDashboard, ListChecks, LogOut, Plus, Settings, Wallet, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { DropdownMenu } from 'radix-ui';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { LogoHorizontal, Monogram } from '@/components/brand/logo';
 import { Button } from '@/components/ui/button';
+import { Dialog } from '@/components/ui/dialog';
 import { Spinner } from '@/components/ui/spinner';
 import { toast } from '@/components/ui/toast';
 import { useMe } from '@/hooks/admin/queries';
@@ -20,8 +21,11 @@ const NAV: { href: string; label: string; short: string; icon: LucideIcon }[] = 
   { href: '/admin', label: 'Painel', short: 'Painel', icon: LayoutDashboard },
   { href: '/admin/agenda', label: 'Agenda', short: 'Agenda', icon: CalendarDays },
   { href: '/admin/atendimentos', label: 'Atendimentos', short: 'Lista', icon: ListChecks },
+  { href: '/admin/financeiro', label: 'Financeiro', short: 'Financeiro', icon: Wallet },
   { href: '/admin/configuracoes', label: 'Configurações', short: 'Ajustes', icon: Settings },
 ];
+
+const byHref = (href: string) => NAV.find((n) => n.href === href)!;
 
 const isActive = (pathname: string, href: string) => (href === '/admin' ? pathname === '/admin' : pathname.startsWith(href));
 
@@ -197,7 +201,14 @@ function MobileTopBar({ name }: { name: string }) {
 function BottomBar() {
   const pathname = usePathname();
   const { openCreate } = useAdminUI();
-  const items = [NAV[0]!, NAV[1]!, null, NAV[2]!, NAV[3]!];
+  const logout = useLogout();
+  const [more, setMore] = useState(false);
+  const items = [byHref('/admin'), byHref('/admin/agenda'), null, byHref('/admin/financeiro'), 'mais'] as const;
+  const moreLinks = [byHref('/admin/atendimentos'), byHref('/admin/configuracoes')];
+  const moreActive = moreLinks.some((l) => isActive(pathname, l.href));
+  const itemClass = (active: boolean) =>
+    cn('flex h-14 w-full flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors', active ? 'text-navy-900' : 'text-subtle hover:text-ink');
+
   return (
     <nav
       aria-label="Painel"
@@ -205,21 +216,7 @@ function BottomBar() {
     >
       <ul className="mx-auto grid h-[68px] max-w-lg grid-cols-5 items-center">
         {items.map((item, i) =>
-          item ? (
-            <li key={item.href} className="flex justify-center">
-              <Link
-                href={item.href}
-                aria-current={isActive(pathname, item.href) ? 'page' : undefined}
-                className={cn(
-                  'flex h-14 w-full flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors',
-                  isActive(pathname, item.href) ? 'text-navy-900' : 'text-subtle hover:text-ink',
-                )}
-              >
-                <item.icon className={cn('size-[22px]', isActive(pathname, item.href) && 'text-steel-600')} aria-hidden="true" />
-                {item.short}
-              </Link>
-            </li>
-          ) : (
+          item === null ? (
             <li key={`novo-${i}`} className="flex justify-center">
               <button
                 type="button"
@@ -230,9 +227,59 @@ function BottomBar() {
                 <Plus className="size-7" aria-hidden="true" />
               </button>
             </li>
+          ) : item === 'mais' ? (
+            <li key="mais" className="flex justify-center">
+              <button type="button" onClick={() => setMore(true)} className={itemClass(moreActive)} aria-haspopup="dialog" aria-expanded={more}>
+                <Ellipsis className={cn('size-[22px]', moreActive && 'text-steel-600')} aria-hidden="true" />
+                Mais
+              </button>
+            </li>
+          ) : (
+            <li key={item.href} className="flex justify-center">
+              <Link href={item.href} aria-current={isActive(pathname, item.href) ? 'page' : undefined} className={itemClass(isActive(pathname, item.href))}>
+                <item.icon className={cn('size-[22px]', isActive(pathname, item.href) && 'text-steel-600')} aria-hidden="true" />
+                {item.short}
+              </Link>
+            </li>
           ),
         )}
       </ul>
+      <Dialog open={more} onOpenChange={setMore} title="Mais opções" size="sm">
+        <ul className="-mx-2 flex flex-col">
+          {moreLinks.map((l) => (
+            <li key={l.href}>
+              <Link
+                href={l.href}
+                onClick={() => setMore(false)}
+                aria-current={isActive(pathname, l.href) ? 'page' : undefined}
+                className="flex h-13 items-center gap-3 rounded-md px-3 text-[15px] font-semibold text-ink hover:bg-steel-100"
+              >
+                <l.icon className="size-5 text-steel-600" aria-hidden="true" />
+                {l.label}
+              </Link>
+            </li>
+          ))}
+          <li>
+            <a href="/" target="_blank" rel="noopener" className="flex h-13 items-center gap-3 rounded-md px-3 text-[15px] font-semibold text-ink hover:bg-steel-100">
+              <ExternalLink className="size-5 text-steel-600" aria-hidden="true" />
+              Ver o site
+            </a>
+          </li>
+          <li className="mt-1 border-t border-line pt-1">
+            <button
+              type="button"
+              onClick={() => {
+                setMore(false);
+                void logout();
+              }}
+              className="flex h-13 w-full items-center gap-3 rounded-md px-3 text-left text-[15px] font-semibold text-danger hover:bg-danger-bg"
+            >
+              <LogOut className="size-5" aria-hidden="true" />
+              Sair do painel
+            </button>
+          </li>
+        </ul>
+      </Dialog>
     </nav>
   );
 }

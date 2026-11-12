@@ -15,6 +15,13 @@
       "when": 1794432677087,
       "tag": "0001_constraints_and_defaults",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794471392490,
+      "tag": "0002_financeiro",
+      "breakpoints": true
     }
   ]
 }

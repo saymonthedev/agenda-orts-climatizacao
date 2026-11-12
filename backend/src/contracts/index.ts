@@ -5,3 +5,4 @@ export * from './settings';
 export * from './appointments';
 export * from './availability';
 export * from './dashboard';
+export * from './finance';

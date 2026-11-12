@@ -9,7 +9,8 @@ import { createAppointment } from '../modules/appointments/appointments.service'
 import { listServices } from '../modules/services/services.service';
 import { getScheduleRules } from '../modules/settings/settings.service';
 import { getDb } from './client';
-import { appointments } from './schema';
+import { eq } from 'drizzle-orm';
+import { appointments, financeCategories, financeEntries, scheduleSettings, serviceTypes } from './schema';
 
 async function main() {
   const env = getEnv();
@@ -22,6 +23,7 @@ async function main() {
   const byName = (part: string) => services.find((s) => s.name.toLowerCase().includes(part))!;
   const today = todayIn(rules.timezone);
 
+  await db.delete(financeEntries);
   await db.delete(appointments);
 
   const plan: Array<[number, string, string, string, string, string, string, 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'in_progress']> = [
@@ -39,9 +41,10 @@ async function main() {
   ];
 
   let created = 0;
+  const seeded: { id: string; client: string; service: string; date: string; status: string }[] = [];
   for (const [offset, time, client, phone, service, address, neighborhood, status] of plan) {
     try {
-      await createAppointment(db, {
+      const appt = await createAppointment(db, {
         clientName: client,
         clientPhone: phone,
         serviceTypeId: byName(service).id,
@@ -55,12 +58,66 @@ async function main() {
         status,
         allowOutsideHours: true,
       });
+      seeded.push({ id: appt.id, client, service: byName(service).name, date: addDaysToDate(today, offset), status });
       created++;
     } catch (err) {
       console.warn(`Ignorado (${client}): ${err instanceof Error ? err.message : err}`);
     }
   }
   console.log(`Seed concluído: ${created} atendimentos de demonstração.`);
+
+  // ---------- financeiro de demonstração (dados fictícios) ----------
+  const prices: Record<string, number> = { instala: 65_000, higieniza: 18_000, preventiva: 22_000, corretiva: 28_000, visita: 8_000 };
+  for (const [part, price] of Object.entries(prices)) {
+    await db.update(serviceTypes).set({ priceCents: price }).where(eq(serviceTypes.id, byName(part).id));
+  }
+  await db.update(scheduleSettings).set({ meiAnnualLimitCents: 8_100_000 }).where(eq(scheduleSettings.id, 1));
+
+  const cats = await db.select().from(financeCategories);
+  const cat = (kind: 'income' | 'expense', name: string) => cats.find((c) => c.kind === kind && c.name === name)!.id;
+  const monthDay = (monthsAgo: number, day: number) => {
+    const [y, m] = today.split('-').map(Number) as [number, number];
+    const d = new Date(Date.UTC(y, m - 1 - monthsAgo, day));
+    return d.toISOString().slice(0, 10);
+  };
+  const entries: (typeof financeEntries.$inferInsert)[] = [];
+  const serviceMix: [string, string, number][] = [
+    ['instala', 'Instalação', 65_000],
+    ['higieniza', 'Higienização', 18_000],
+    ['preventiva', 'Manutenção preventiva', 22_000],
+    ['corretiva', 'Manutenção corretiva', 28_000],
+  ];
+  const methods = ['pix', 'pix', 'credit_card', 'cash', 'debit_card', 'pix'] as const;
+  // meses anteriores: entradas por serviço e saídas típicas
+  for (let ago = 7; ago >= 1; ago--) {
+    const jobs = 6 + ((ago * 3) % 5);
+    for (let i = 0; i < jobs; i++) {
+      const [, label, amount] = serviceMix[(i + ago) % serviceMix.length]!;
+      entries.push({ kind: 'income', description: `${label} · cliente ${i + 1}`, amountCents: amount + ((i * 1_500) % 4_000), categoryId: cat('income', 'Serviços'), date: monthDay(ago, 2 + i * 3), status: 'paid', paymentMethod: methods[(i + ago) % methods.length] });
+    }
+    if (ago % 2 === 0) entries.push({ kind: 'income', description: 'Venda de suporte e controle', amountCents: 9_000, categoryId: cat('income', 'Venda de peças e equipamentos'), date: monthDay(ago, 18), status: 'paid', paymentMethod: 'cash' });
+    entries.push(
+      { kind: 'expense', description: 'Tubos, isolamento e conexões', amountCents: 38_000 + ago * 2_500, categoryId: cat('expense', 'Materiais e peças'), date: monthDay(ago, 5), status: 'paid', paymentMethod: 'pix' },
+      { kind: 'expense', description: 'Combustível', amountCents: 42_000 + (ago % 3) * 6_000, categoryId: cat('expense', 'Combustível e deslocamento'), date: monthDay(ago, 12), status: 'paid', paymentMethod: 'debit_card' },
+      { kind: 'expense', description: 'DAS (MEI)', amountCents: 7_590, categoryId: cat('expense', 'Impostos e taxas (DAS)'), date: monthDay(ago, 20), status: 'paid', paymentMethod: 'pix' },
+      { kind: 'expense', description: 'Plano de celular e internet', amountCents: 12_990, categoryId: cat('expense', 'Telefone e internet'), date: monthDay(ago, 10), status: 'paid', paymentMethod: 'credit_card' },
+    );
+    if (ago % 3 === 1) entries.push({ kind: 'expense', description: 'Troca de óleo e pneus', amountCents: 64_000, categoryId: cat('expense', 'Manutenção do veículo'), date: monthDay(ago, 22), status: 'paid', paymentMethod: 'credit_card' });
+    if (ago === 4) entries.push({ kind: 'expense', description: 'Bomba de vácuo', amountCents: 89_000, categoryId: cat('expense', 'Ferramentas e equipamentos'), date: monthDay(ago, 9), status: 'paid', paymentMethod: 'credit_card' });
+  }
+  // mês atual: pagamentos dos atendimentos já feitos (os concluídos e os de hoje)
+  for (const a of seeded.filter((x) => x.date <= today && x.status !== 'cancelled')) {
+    const part = Object.keys(prices).find((k) => a.service.toLowerCase().includes(k))!;
+    entries.push({ kind: 'income', description: `${a.service} · ${a.client}`, amountCents: prices[part]!, categoryId: cat('income', 'Serviços'), date: a.date, status: a.status === 'completed' ? 'paid' : 'pending', paymentMethod: 'pix', appointmentId: a.id });
+  }
+  entries.push(
+    { kind: 'income', description: 'Instalação · Condomínio Vila Nova (2ª parcela)', amountCents: 45_000, categoryId: cat('income', 'Serviços'), date: addDaysToDate(today, -4), status: 'pending', paymentMethod: 'boleto' },
+    { kind: 'expense', description: 'Gás refrigerante R-410A', amountCents: 54_000, categoryId: cat('expense', 'Materiais e peças'), date: addDaysToDate(today, -1), status: 'paid', paymentMethod: 'pix' },
+    { kind: 'expense', description: 'Combustível', amountCents: 21_000, categoryId: cat('expense', 'Combustível e deslocamento'), date: addDaysToDate(today, -2), status: 'paid', paymentMethod: 'debit_card' },
+    { kind: 'expense', description: 'DAS (MEI)', amountCents: 7_590, categoryId: cat('expense', 'Impostos e taxas (DAS)'), date: addDaysToDate(today, 6), status: 'pending', paymentMethod: null },
+  );
+  await db.insert(financeEntries).values(entries);
+  console.log(`Seed do financeiro: ${entries.length} lançamentos de demonstração.`);
 }
 
 main()

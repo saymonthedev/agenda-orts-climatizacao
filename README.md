@@ -15,7 +15,7 @@ Projeto da **ORTS Climatização** (Vila Nova, Jaraguá do Sul/SC) com duas part
 | Pessoa | O que acessa |
 |---|---|
 | Visitante | Apenas o site institucional (`/`). Não há link público para o painel, o `/admin` é bloqueado para buscadores (`robots.txt` e `noindex`) e toda rota de dados exige sessão. |
-| Proprietário (Rafael) | `/admin`: painel, agenda (dia/semana/mês), lista de atendimentos e configurações. |
+| Proprietário (Rafael) | `/admin`: painel, agenda (dia/semana/mês), lista de atendimentos, financeiro e configurações. |
 
 ### Como o Rafael acessa a agenda
 
@@ -51,7 +51,7 @@ Quem tenta abrir `/admin` sem sessão é levado ao login. Mesmo que alguém forc
 │   │   ├── domain/           # regras puras: fuso horário, expediente, conflitos
 │   │   ├── database/         # schema Drizzle, conexão, migrate e seed
 │   │   ├── http/             # erros, validação, cookies, proteção de rotas
-│   │   ├── modules/          # auth, appointments, settings, services, dashboard
+│   │   ├── modules/          # auth, appointments, settings, services, dashboard, finance
 │   │   └── scripts/          # criação/redefinição segura da conta admin
 │   └── tests/                # testes unitários e de API (PGlite em memória)
 ├── frontend/                 # Next.js (pacote @orts/frontend)
@@ -162,6 +162,23 @@ Todas são configuráveis em **Configurações** e validadas no backend:
 - **Encaixe:** horário fora do expediente, na pausa ou em cima da hora só é aceito com confirmação explícita ("Registrar como encaixe"). **Conflitos nunca são liberados.**
 - Fuso fixo de Jaraguá do Sul (`America/Sao_Paulo`), independente do servidor.
 
+## Financeiro
+
+Livro-caixa simples (regime de caixa), o modelo usado por MEIs e pequenas prestadoras de serviço:
+
+- **Lançamentos** de entrada e saída com valor, categoria, descrição, situação (**pago/recebido** ou **a pagar/a receber**, com vencimento), forma de pagamento e observações. Pendências passam a **vencidas** sozinhas.
+- **Pagamento direto no atendimento:** os detalhes de cada atendimento têm a seção *Pagamento*, que já sugere o valor do serviço (preço sugerido em Configurações → Serviços). Atendimento concluído sem pagamento fica destacado.
+- **Resumo do mês:** resultado (entradas − saídas pagas), entradas e saídas com variação, a receber, a pagar e média por atendimento. No mês em andamento, a variação compara com o **mesmo período** do mês anterior, para não comparar meio mês com um mês inteiro.
+- **Gráficos:** entradas × saídas dos últimos 12 meses (com tabela alternativa), saídas por categoria, entradas por serviço e formas de recebimento. Cores validadas para daltonismo e contraste.
+- **Limite do MEI** (opcional): faturamento do ano comparado ao limite (R$ 81 mil em 2026, editável; a LC 238/2026 o eleva para R$ 110 mil em 2027) e projeção de fechamento do ano.
+- **Vencimentos** dos próximos 7 dias com "Recebi/Paguei", filtros, busca e **exportação para planilha** (CSV no padrão do Excel brasileiro).
+- **Categorias** editáveis em Configurações → Financeiro. Categoria com lançamentos é arquivada em vez de apagada, preservando o histórico.
+
+## Salvamento automático e exclusões
+
+- Toda edição (configurações, serviços, atendimentos, lançamentos e categorias) é **salva automaticamente** logo depois de digitar, com o aviso "Salvando… / Alterações salvas" e a opção de tentar de novo se a conexão falhar. Criar algo novo continua sendo um botão explícito, assim como a troca de senha.
+- Toda exclusão pede **confirmação** em uma janela própria.
+
 ## Segurança
 
 - Rotas privadas protegidas **no backend** em toda requisição. O `proxy.ts` do Next só melhora a navegação.
@@ -186,8 +203,8 @@ npm test
 npm run test:e2e
 ```
 
-- **Backend (45 testes):** regras de agenda e fuso, autenticação, força bruta, CSRF, CRUD, conflitos (inclusive concorrentes e direto no banco), filtros, busca, configurações, autorização em variações de rota.
-- **Ponta a ponta (12 cenários, rodados em desktop e celular):** site, proteção do painel, fluxo completo de atendimento, configurações, logout, auditoria **axe** (WCAG 2.1 AA) em todas as telas e varredura de 15 larguras (320–1440px) contra qualquer elemento fora da área útil.
+- **Backend (58 testes):** regras de agenda e fuso, autenticação, força bruta, CSRF, CRUD, conflitos (inclusive concorrentes e direto no banco), filtros, busca, configurações, autorização em variações de rota e financeiro (somas, comparação com o mesmo período, MEI, vínculo com atendimentos, CSV).
+- **Ponta a ponta (15 cenários, rodados em desktop e celular):** site, proteção do painel, fluxo completo de atendimento, configurações com salvamento automático, confirmação de exclusões, financeiro (lançar, editar, excluir, MEI e categorias), logout, auditoria **axe** (WCAG 2.1 AA) em todas as telas e varredura de 15 larguras (320–1440px) contra qualquer elemento fora da área útil.
 
 ## Deploy (Vercel + Neon)
 

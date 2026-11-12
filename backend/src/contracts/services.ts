@@ -16,6 +16,7 @@ export const serviceInputSchema = z.object({
   color: z.enum(SERVICE_COLORS).default('slate'),
   active: z.boolean().default(true),
   sortOrder: z.number().int().min(0).max(999).default(0),
+  priceCents: z.number().int().min(0, 'Preço inválido.').max(100_000_000, 'Preço acima do permitido.').nullish().transform((v) => v ?? null),
 });
 
 export const serviceUpdateSchema = z
@@ -26,6 +27,7 @@ export const serviceUpdateSchema = z
     color: z.enum(SERVICE_COLORS),
     active: z.boolean(),
     sortOrder: z.number().int().min(0).max(999),
+    priceCents: z.number().int().min(0, 'Preço inválido.').max(100_000_000, 'Preço acima do permitido.').nullable(),
   })
   .partial();
 
@@ -40,4 +42,6 @@ export type ServiceTypeDTO = {
   color: ServiceColor;
   active: boolean;
   sortOrder: number;
+  /** Preço sugerido em centavos. */
+  priceCents: number | null;
 };

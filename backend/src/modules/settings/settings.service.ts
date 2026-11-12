@@ -51,6 +51,7 @@ export function toSettingsDTO(row: SettingsRow): SettingsDTO {
     instagramUrl: row.instagramUrl,
     showHoursOnSite: row.showHoursOnSite,
     confirmationTemplate: row.confirmationTemplate,
+    meiAnnualLimitCents: row.meiAnnualLimitCents,
     updatedAt: row.updatedAt.toISOString(),
   };
 }
@@ -109,6 +110,7 @@ export async function updateSettings(db: Database, input: SettingsParsed): Promi
       instagramUrl: input.instagramUrl,
       showHoursOnSite: input.showHoursOnSite,
       confirmationTemplate: input.confirmationTemplate,
+      ...(input.meiAnnualLimitCents !== undefined ? { meiAnnualLimitCents: input.meiAnnualLimitCents } : {}),
       updatedAt: new Date(),
     })
     .where(eq(scheduleSettings.id, 1))

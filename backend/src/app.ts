@@ -9,6 +9,7 @@ import type { AppEnv, AppHooks } from './http/types';
 import { appointmentsRoutes, availabilityRoutes } from './modules/appointments/appointments.routes';
 import { authRoutes } from './modules/auth/auth.routes';
 import { dashboardRoutes } from './modules/dashboard/dashboard.routes';
+import { financeRoutes } from './modules/finance/finance.routes';
 import { servicesRoutes } from './modules/services/services.routes';
 import { settingsRoutes } from './modules/settings/settings.routes';
 
@@ -52,6 +53,7 @@ export function createApp(options: CreateAppOptions = {}) {
     '/appointments': appointmentsRoutes,
     '/availability': availabilityRoutes,
     '/dashboard': dashboardRoutes,
+    '/finance': financeRoutes,
     '/services': servicesRoutes,
     '/settings': settingsRoutes,
   } as const;

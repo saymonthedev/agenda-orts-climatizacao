@@ -61,6 +61,14 @@ export const settingsInputSchema = z.object({
     .transform((v) => (v ? v : null))
     .refine((v) => v === null || /^https:\/\/(www\.)?instagram\.com\/[A-Za-z0-9._]+\/?$/.test(v), 'Informe o link completo do perfil (https://instagram.com/...).'),
   showHoursOnSite: z.boolean().default(false),
+  /** Limite anual do MEI em centavos: ausente = não muda; nulo = não acompanhar. */
+  meiAnnualLimitCents: z
+    .number()
+    .int()
+    .min(100_000, 'Informe um limite a partir de R$ 1.000,00.')
+    .max(1_000_000_000, 'Limite acima do permitido.')
+    .nullable()
+    .optional(),
   confirmationTemplate: z
     .string()
     .trim()

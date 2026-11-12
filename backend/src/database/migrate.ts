@@ -60,7 +60,10 @@ async function reportBootstrap(result: 'created' | 'exists' | 'skipped') {
   if (result === 'skipped') console.log('[migrate] ADMIN_USERNAME/ADMIN_PASSWORD não definidos: nenhuma conta criada automaticamente.');
 }
 
-main().catch((err) => {
-  console.error('[migrate] Falha ao aplicar migrations:', err instanceof Error ? err.message : err);
-  process.exit(1);
-});
+main()
+  // O PGlite local mantém o processo vivo: encerra explicitamente ao terminar.
+  .then(() => process.exit(0))
+  .catch((err) => {
+    console.error('[migrate] Falha ao aplicar migrations:', err instanceof Error ? err.message : err);
+    process.exit(1);
+  });

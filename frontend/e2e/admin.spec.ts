@@ -142,6 +142,73 @@ test.describe('painel administrativo', () => {
     await expect(page.getByLabel('Nome da pausa')).toHaveCount(before);
   });
 
+  test('financeiro: lançar, editar com salvamento automático e excluir com confirmação', async ({ page }, info) => {
+    const desc = `Peças ${info.project.name}`;
+    await login(page);
+    // navegação principal: barra inferior no celular, lateral no computador
+    await page.getByRole('link', { name: 'Financeiro', exact: true }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Financeiro' })).toBeVisible();
+    await noHorizontalOverflow(page);
+
+    // nova saída (valor digitado da direita para a esquerda)
+    await page.getByRole('button', { name: 'Nova saída' }).click();
+    const create = page.getByRole('dialog', { name: 'Novo lançamento' });
+    await create.getByLabel('Valor').fill('12345');
+    await expect(create.getByLabel('Valor')).toHaveValue('123,45');
+    await create.getByLabel('Descrição').fill(desc);
+    await create.getByRole('button', { name: 'Adicionar' }).click();
+    await expect(page.getByText('Saída registrada.')).toBeVisible();
+    const row = page.getByRole('button', { name: new RegExp(`^${desc}`) });
+    await expect(row).toContainText('R$ 123,45');
+    await expect(page.getByText('Saídas do mês').locator('..')).toContainText('R$ 123,45');
+
+    // edição salva sozinha
+    await row.click();
+    const edit = page.getByRole('dialog', { name: 'Editar lançamento' });
+    await edit.getByLabel('Descrição').fill(`${desc} trocadas`);
+    await expect(edit.getByRole('status').filter({ hasText: 'Alterações salvas' })).toBeVisible();
+    await edit.getByRole('button', { name: 'Concluir' }).click();
+    const renamed = page.getByRole('button', { name: new RegExp(`^${desc} trocadas`) });
+    await expect(renamed).toBeVisible();
+    await noHorizontalOverflow(page);
+
+    // excluir: cancelar mantém, confirmar remove
+    await renamed.click();
+    await page.getByRole('dialog', { name: 'Editar lançamento' }).getByRole('button', { name: 'Excluir lançamento' }).click();
+    const ask = page.getByRole('alertdialog');
+    await expect(ask).toContainText('Excluir este lançamento?');
+    await ask.getByRole('button', { name: 'Cancelar' }).click();
+    await expect(page.getByRole('dialog', { name: 'Editar lançamento' })).toBeVisible();
+    await page.getByRole('dialog', { name: 'Editar lançamento' }).getByRole('button', { name: 'Excluir lançamento' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Excluir' }).click();
+    await expect(page.getByText('Lançamento excluído.')).toBeVisible();
+    await expect(page.getByRole('button', { name: new RegExp(`^${desc}`) })).toHaveCount(0);
+  });
+
+  test('ajustes do financeiro: limite do MEI e categorias', async ({ page }, info) => {
+    await login(page);
+    await page.goto('/admin/configuracoes?aba=financeiro');
+    const mei = page.getByRole('switch', { name: /Acompanhar o limite anual do MEI/ });
+    await expect(mei).toBeVisible();
+    const wasOn = (await mei.getAttribute('aria-checked')) === 'true';
+    await mei.click();
+    await expect(page.getByRole('status').filter({ hasText: 'Alterações salvas' })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole('switch', { name: /Acompanhar o limite anual do MEI/ })).toHaveAttribute('aria-checked', wasOn ? 'false' : 'true');
+
+    // nova categoria; excluir pede confirmação
+    const name = `Aluguel ${info.project.name}`;
+    await page.getByLabel('Nova categoria de saída').fill(name);
+    await page.getByLabel('Nova categoria de saída').press('Enter');
+    await expect(page.getByLabel(`Nome da categoria ${name}`)).toHaveValue(name);
+    await noHorizontalOverflow(page);
+    await page.getByRole('button', { name: `Excluir categoria ${name}` }).click();
+    const ask = page.getByRole('alertdialog');
+    await expect(ask).toContainText(`Excluir a categoria “${name}”?`);
+    await ask.getByRole('button', { name: 'Excluir' }).click();
+    await expect(page.getByLabel(`Nome da categoria ${name}`)).toHaveCount(0);
+  });
+
   test('logout encerra a sessão', async ({ page }) => {
     await login(page);
     await page.goto('/admin');

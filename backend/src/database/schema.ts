@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import {
   boolean,
   check,
+  date,
   index,
   integer,
   jsonb,
@@ -14,6 +15,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { APPOINTMENT_STATUSES } from '../contracts/appointments';
+import { FINANCE_KINDS, FINANCE_STATUSES, PAYMENT_METHODS } from '../contracts/finance';
 import type { ServiceColor } from '../contracts/services';
 import type { BreakWindow, DayHours } from '../contracts/settings';
 
@@ -23,6 +25,9 @@ const timestamps = {
 };
 
 export const appointmentStatusEnum = pgEnum('appointment_status', APPOINTMENT_STATUSES);
+export const financeKindEnum = pgEnum('finance_kind', FINANCE_KINDS);
+export const financeStatusEnum = pgEnum('finance_status', FINANCE_STATUSES);
+export const paymentMethodEnum = pgEnum('payment_method', PAYMENT_METHODS);
 
 /** Usuários do painel (inicialmente apenas o proprietário). Sem cadastro público. */
 export const users = pgTable(
@@ -75,11 +80,14 @@ export const serviceTypes = pgTable(
     color: text('color').$type<ServiceColor>().notNull().default('slate'),
     active: boolean('active').notNull().default(true),
     sortOrder: integer('sort_order').notNull().default(0),
+    /** Preço sugerido em centavos (preenche o valor ao registrar o pagamento). */
+    priceCents: integer('price_cents'),
     ...timestamps,
   },
   (t) => [
     uniqueIndex('service_types_name_unique').on(sql`lower(${t.name})`),
     check('service_types_duration_check', sql`${t.durationMinutes} between 15 and 720`),
+    check('service_types_price_check', sql`${t.priceCents} is null or ${t.priceCents} between 0 and 100000000`),
   ],
 );
 
@@ -135,6 +143,8 @@ export const scheduleSettings = pgTable(
     businessAddress: text('business_address'),
     serviceArea: text('service_area'),
     instagramUrl: text('instagram_url'),
+    /** Limite anual de faturamento do MEI em centavos; nulo = não acompanhar. */
+    meiAnnualLimitCents: integer('mei_annual_limit_cents'),
     showHoursOnSite: boolean('show_hours_on_site').notNull().default(false),
     confirmationTemplate: text('confirmation_template').notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -142,8 +152,55 @@ export const scheduleSettings = pgTable(
   (t) => [check('schedule_settings_singleton', sql`${t.id} = 1`)],
 );
 
+/** Categorias do financeiro (entradas e saídas), editáveis pelo proprietário. */
+export const financeCategories = pgTable(
+  'finance_categories',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    kind: financeKindEnum('kind').notNull(),
+    name: text('name').notNull(),
+    sortOrder: integer('sort_order').notNull().default(0),
+    archived: boolean('archived').notNull().default(false),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex('finance_categories_kind_name_unique').on(t.kind, sql`lower(${t.name})`)],
+);
+
+/**
+ * Lançamentos do financeiro. A data é a do pagamento (quando pago) ou o vencimento
+ * (quando pendente): o fluxo de caixa soma os pagos pela data, e os pendentes com
+ * data passada estão vencidos. Valores sempre positivos, em centavos.
+ */
+export const financeEntries = pgTable(
+  'finance_entries',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    kind: financeKindEnum('kind').notNull(),
+    description: text('description').notNull(),
+    amountCents: integer('amount_cents').notNull(),
+    categoryId: uuid('category_id')
+      .notNull()
+      .references(() => financeCategories.id, { onDelete: 'restrict' }),
+    date: date('date', { mode: 'string' }).notNull(),
+    status: financeStatusEnum('status').notNull().default('paid'),
+    paymentMethod: paymentMethodEnum('payment_method'),
+    appointmentId: uuid('appointment_id').references(() => appointments.id, { onDelete: 'set null' }),
+    notes: text('notes'),
+    ...timestamps,
+  },
+  (t) => [
+    index('finance_entries_date_idx').on(t.date),
+    index('finance_entries_status_date_idx').on(t.status, t.date),
+    index('finance_entries_category_idx').on(t.categoryId),
+    index('finance_entries_appointment_idx').on(t.appointmentId),
+    check('finance_entries_amount_check', sql`${t.amountCents} > 0 and ${t.amountCents} <= 100000000`),
+  ],
+);
+
 export type UserRow = typeof users.$inferSelect;
 export type SessionRow = typeof sessions.$inferSelect;
 export type ServiceTypeRow = typeof serviceTypes.$inferSelect;
 export type AppointmentRow = typeof appointments.$inferSelect;
 export type SettingsRow = typeof scheduleSettings.$inferSelect;
+export type FinanceCategoryRow = typeof financeCategories.$inferSelect;
+export type FinanceEntryRow = typeof financeEntries.$inferSelect;

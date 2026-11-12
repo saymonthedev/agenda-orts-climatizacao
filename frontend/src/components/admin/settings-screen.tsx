@@ -1,15 +1,16 @@
 'use client';
 
 import type { BreakWindow, DayHours, ServiceColor, ServiceTypeDTO, SettingsDTO, SettingsInput } from '@orts/backend/contracts';
-import { PASSWORD_MIN_LENGTH, SERVICE_COLORS, settingsInputSchema, SLOT_INTERVALS, TEMPLATE_VARIABLES, WEEKDAY_LABELS } from '@orts/backend/contracts';
+import { MEI_DEFAULT_LIMIT_CENTS, PASSWORD_MIN_LENGTH, SERVICE_COLORS, settingsInputSchema, SLOT_INTERVALS, TEMPLATE_VARIABLES, WEEKDAY_LABELS } from '@orts/backend/contracts';
 import { KeyRound, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Tabs } from 'radix-ui';
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { AutosaveIndicator } from '@/components/ui/autosave-indicator';
 import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/ui/confirm';
 import { Dialog } from '@/components/ui/dialog';
 import { TextArea, TextField } from '@/components/ui/field';
+import { MoneyField } from '@/components/ui/money-field';
 import { maskPhone, PhoneField } from '@/components/ui/phone-field';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -20,6 +21,8 @@ import { useAutosave } from '@/hooks/use-autosave';
 import { ApiError } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { formatDurationLabel, timeOf } from '@/lib/format';
+import { formatBRL } from '@/lib/money';
+import { FinanceCategoriesManager } from './finance-categories';
 import { PageHeader } from './shell';
 import { SERVICE_COLOR, SERVICE_COLOR_LABEL, ServiceDot } from './status';
 
@@ -56,6 +59,7 @@ const toForm = (s: SettingsDTO): Form => ({
   serviceArea: s.serviceArea,
   instagramUrl: s.instagramUrl,
   showHoursOnSite: s.showHoursOnSite,
+  meiAnnualLimitCents: s.meiAnnualLimitCents ?? null,
   confirmationTemplate: s.confirmationTemplate,
 });
 
@@ -95,6 +99,11 @@ function SettingsTabs({ settings }: { settings: SettingsDTO }) {
   const confirm = useConfirm();
   const [form, setForm] = useState<Form>(initial);
   const [tab, setTab] = useState('expediente');
+  // permite abrir direto numa aba (ex.: /admin/configuracoes?aba=financeiro)
+  useEffect(() => {
+    const aba = new URLSearchParams(window.location.search).get('aba');
+    if (aba) setTab(aba);
+  }, []);
   // Salvamento automático: o formulário não é recarregado a cada resposta do servidor,
   // para não apagar o que a pessoa ainda está digitando.
   const autosave = useAutosave<Form>({
@@ -126,6 +135,7 @@ function SettingsTabs({ settings }: { settings: SettingsDTO }) {
     { value: 'expediente', label: 'Expediente' },
     { value: 'regras', label: 'Regras' },
     { value: 'servicos', label: 'Serviços' },
+    { value: 'financeiro', label: 'Financeiro' },
     { value: 'site', label: 'Dados do site' },
     { value: 'acesso', label: 'Acesso' },
   ];
@@ -296,6 +306,29 @@ function SettingsTabs({ settings }: { settings: SettingsDTO }) {
           </Section>
         </Tabs.Content>
 
+        <Tabs.Content value="financeiro" className="flex flex-col gap-5 outline-none">
+          <Section title="Limite do MEI" description="Mostra no Financeiro quanto já entrou no ano e quanto ainda pode faturar.">
+            <div className="flex flex-col gap-5">
+              <Switch
+                checked={form.meiAnnualLimitCents != null}
+                onCheckedChange={(on) => patch({ meiAnnualLimitCents: on ? MEI_DEFAULT_LIMIT_CENTS : null })}
+                label="Acompanhar o limite anual do MEI"
+                description="Ligue se a empresa for MEI."
+              />
+              {form.meiAnnualLimitCents != null && (
+                <MoneyField
+                  label="Limite anual"
+                  value={form.meiAnnualLimitCents}
+                  onChange={(v) => patch({ meiAnnualLimitCents: v ?? 0 })}
+                  error={errors.meiAnnualLimitCents}
+                  hint="Em 2026 o limite é R$ 81.000,00. A Lei Complementar 238/2026 sobe para R$ 110.000,00 em 2027."
+                  containerClassName="max-w-xs"
+                />
+              )}
+            </div>
+          </Section>
+          <FinanceCategoriesManager />
+        </Tabs.Content>
       </form>
       <AutosaveIndicator variant="floating" status={autosave.status} message={autosave.message} onRetry={() => void autosave.retry()} />
 
@@ -325,6 +358,7 @@ function ServicesManager() {
                 <p className={cn('truncate text-[15px] font-semibold', s.active ? 'text-ink' : 'text-subtle line-through')}>{s.name}</p>
                 <p className="text-[13px] text-muted">
                   {formatDurationLabel(s.durationMinutes)}
+                  {s.priceCents != null && ` · ${formatBRL(s.priceCents)}`}
                   {!s.active && ' · desativado'}
                 </p>
               </div>
@@ -343,7 +377,7 @@ function ServicesManager() {
   );
 }
 
-type ServiceForm = { name: string; description: string; durationMinutes: number; color: ServiceColor; active: boolean };
+type ServiceForm = { name: string; description: string; durationMinutes: number; color: ServiceColor; active: boolean; priceCents: number | null };
 
 const serviceToForm = (s: ServiceTypeDTO): ServiceForm => ({
   name: s.name,
@@ -351,8 +385,16 @@ const serviceToForm = (s: ServiceTypeDTO): ServiceForm => ({
   durationMinutes: s.durationMinutes,
   color: s.color,
   active: s.active,
+  priceCents: s.priceCents,
 });
-const serviceInput = (v: ServiceForm) => ({ name: v.name.trim(), description: v.description.trim() || null, durationMinutes: v.durationMinutes, color: v.color, active: v.active });
+const serviceInput = (v: ServiceForm) => ({
+  name: v.name.trim(),
+  description: v.description.trim() || null,
+  durationMinutes: v.durationMinutes,
+  color: v.color,
+  active: v.active,
+  priceCents: v.priceCents,
+});
 const validateService = (v: ServiceForm): Record<string, string> => (v.name.trim().length < 2 ? { name: 'Informe o nome do serviço.' } : {});
 
 function ServiceDialog({ service, onClose }: { service?: ServiceTypeDTO; onClose: () => void }) {
@@ -364,7 +406,10 @@ function ServiceFields({ value, onChange, errors }: { value: ServiceForm; onChan
     <>
       <TextField label="Nome" value={value.name} onChange={(e) => onChange({ name: e.target.value })} error={errors.name} maxLength={80} />
       <TextArea label="Descrição" optional rows={2} value={value.description} onChange={(e) => onChange({ description: e.target.value })} maxLength={200} />
-      <Select label="Duração padrão" value={String(value.durationMinutes)} onChange={(v) => onChange({ durationMinutes: Number(v) })} options={DURATIONS} />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Select label="Duração padrão" value={String(value.durationMinutes)} onChange={(v) => onChange({ durationMinutes: Number(v) })} options={DURATIONS} />
+        <MoneyField label="Preço sugerido" optional value={value.priceCents} onChange={(priceCents) => onChange({ priceCents })} hint="Já vem preenchido ao registrar o pagamento." />
+      </div>
       <fieldset>
         <legend className="mb-2 text-[13px] font-semibold text-ink-soft">Cor na agenda</legend>
         <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Cor na agenda">
@@ -390,7 +435,7 @@ function ServiceFields({ value, onChange, errors }: { value: ServiceForm; onChan
 /** Criar é uma ação explícita: o serviço só passa a existir ao confirmar. */
 function NewServiceDialog({ onClose }: { onClose: () => void }) {
   const save = useSaveService();
-  const [value, setValue] = useState<ServiceForm>({ name: '', description: '', durationMinutes: 90, color: 'slate', active: true });
+  const [value, setValue] = useState<ServiceForm>({ name: '', description: '', durationMinutes: 90, color: 'slate', active: true, priceCents: null });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   async function submit(e: FormEvent) {

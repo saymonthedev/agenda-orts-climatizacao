@@ -80,6 +80,10 @@
   --color-svc-clay: #a35c43;
   --color-svc-navy: #1c2b45;
 
+  /* Financeiro: entradas e saídas (par categórico validado: croma, daltonismo e contraste) */
+  --color-fin-in: #1c72a3;
+  --color-fin-out: #c0703f;
+
   --color-danger: #b0463a;
   --color-danger-bg: #f8e6e2;
   --color-success: #3f7d4f;

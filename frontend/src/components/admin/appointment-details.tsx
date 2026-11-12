@@ -1,8 +1,8 @@
 'use client';
 
-import type { AppointmentDTO, AppointmentStatus } from '@orts/backend/contracts';
-import { APPOINTMENT_STATUSES } from '@orts/backend/contracts';
-import { Clock, MapPin, Navigation, NotebookPen, Pencil, Phone, Trash2, Wrench } from 'lucide-react';
+import type { AppointmentDTO, AppointmentStatus, FinanceEntryDTO } from '@orts/backend/contracts';
+import { APPOINTMENT_STATUSES, FINANCE_STATUS_LABELS, PAYMENT_METHOD_LABELS } from '@orts/backend/contracts';
+import { AlertTriangle, Clock, MapPin, Navigation, NotebookPen, Pencil, Phone, Plus, Trash2, Wallet, Wrench } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { WhatsAppIcon } from '@/components/site/icons';
 import { Button } from '@/components/ui/button';
@@ -10,12 +10,14 @@ import { useConfirm } from '@/components/ui/confirm';
 import { Dialog } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/toast';
-import { useAppointment, useChangeStatus, useDeleteAppointment, useSettings } from '@/hooks/admin/queries';
+import { useAppointment, useChangeStatus, useDeleteAppointment, useFinanceEntries, useSaveFinanceEntry, useServices, useSettings } from '@/hooks/admin/queries';
 import { ApiError } from '@/lib/api';
 import { cn } from '@/lib/cn';
-import { capitalize, formatDurationLabel, formatLongDate, formatPhone } from '@/lib/format';
+import { capitalize, formatDurationLabel, formatLongDate, formatNumericDate, formatPhone, formatShortDate, todayISO } from '@/lib/format';
 import { mapsDirectionsLink, telLink, whatsappLink } from '@/lib/links';
 import { buildConfirmationMessage, mapsQueryFor } from '@/lib/messages';
+import { formatBRL } from '@/lib/money';
+import { useAdminUI } from './admin-ui';
 import { ServiceDot, STATUS_META, StatusBadge } from './status';
 
 function Row({ icon, label, children }: { icon: ReactNode; label: string; children: ReactNode }) {
@@ -164,6 +166,7 @@ export function AppointmentDetails({ id, onClose, onEdit }: { id: string | null;
             </div>
           </div>
 
+          <PaymentSection appointment={a} />
           <div className="divide-y divide-line border-y border-line">
             <Row icon={<Phone />} label="Telefone">
               <a href={telLink(a.clientPhone)} className="tabular font-medium underline-offset-4 hover:underline">
@@ -196,5 +199,84 @@ export function AppointmentDetails({ id, onClose, onEdit }: { id: string | null;
         </div>
       )}
     </Dialog>
+  );
+}
+
+/** Pagamento do atendimento: lançamentos de entrada ligados a ele no financeiro. */
+function PaymentSection({ appointment: a }: { appointment: AppointmentDTO }) {
+  const entries = useFinanceEntries({ appointmentId: a.id, pageSize: 20 });
+  const services = useServices();
+  const save = useSaveFinanceEntry();
+  const { openEntry } = useAdminUI();
+  const items = entries.data?.items ?? [];
+  const price = services.data?.find((s) => s.id === a.serviceType.id)?.priceCents ?? null;
+  const paidTotal = items.filter((e) => e.status === 'paid').reduce((sum, e) => sum + (e.kind === 'income' ? e.amountCents : -e.amountCents), 0);
+
+  const register = () =>
+    openEntry({
+      defaults: {
+        kind: 'income',
+        categoryName: 'Serviços',
+        description: `${a.serviceType.name} · ${a.clientName}`,
+        amountCents: items.length ? null : price,
+        date: todayISO(),
+        status: 'paid',
+        paymentMethod: 'pix',
+        appointment: { id: a.id, label: `${a.clientName} · ${formatNumericDate(a.date)} ${a.startTime}` },
+      },
+    });
+
+  async function settle(e: FinanceEntryDTO) {
+    try {
+      await save.mutateAsync({ id: e.id, input: { status: 'paid', date: todayISO() } });
+      toast.success('Recebimento registrado.', { description: formatBRL(e.amountCents) });
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Não foi possível atualizar.');
+    }
+  }
+
+  return (
+    <div>
+      <p className="mb-2.5 flex items-center justify-between gap-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-subtle">
+        Pagamento
+        {items.length > 0 && <span className="tabular normal-case tracking-normal text-muted">Recebido: {formatBRL(paidTotal)}</span>}
+      </p>
+      {entries.isLoading ? (
+        <Skeleton className="h-16" />
+      ) : items.length === 0 ? (
+        <div className={cn('rounded-md border border-dashed border-line-strong p-4', a.status === 'completed' && 'border-solid border-status-pending/40 bg-status-pending-bg/60')}>
+          <p className={cn('flex items-start gap-2 text-[14px]', a.status === 'completed' ? 'font-semibold text-status-pending-fg' : 'text-ink-soft')}>
+            {a.status === 'completed' && <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />}
+            {a.status === 'completed' ? 'Serviço concluído sem pagamento registrado.' : 'Nenhum pagamento registrado ainda.'}
+          </p>
+          <Button variant="dark" size="sm" className="mt-3" onClick={register}>
+            <Wallet className="size-4" aria-hidden="true" /> Registrar pagamento
+          </Button>
+        </div>
+      ) : (
+        <ul className="divide-y divide-line rounded-md border border-line">
+          {items.map((e) => (
+            <li key={e.id} className="flex items-center gap-3 px-3 py-2.5">
+              <button type="button" onClick={() => openEntry({ entry: e })} className="min-w-0 flex-1 text-left">
+                <span className="tabular block text-[15px] font-semibold text-ink">{formatBRL(e.amountCents)}</span>
+                <span className={cn('block truncate text-[12px]', e.overdue ? 'font-semibold text-status-pending-fg' : 'text-muted')}>
+                  {[e.overdue ? 'Vencido' : FINANCE_STATUS_LABELS[e.kind][e.status], e.paymentMethod ? PAYMENT_METHOD_LABELS[e.paymentMethod] : null, formatShortDate(e.date)].filter(Boolean).join(' · ')}
+                </span>
+              </button>
+              {e.status === 'pending' && (
+                <Button variant="secondary" size="sm" onClick={() => void settle(e)} disabled={save.isPending}>
+                  Recebi
+                </Button>
+              )}
+            </li>
+          ))}
+          <li>
+            <button type="button" onClick={register} className="flex h-11 w-full items-center gap-2 px-3 text-[13px] font-semibold text-steel-600 hover:bg-steel-100/60">
+              <Plus className="size-4" aria-hidden="true" /> Registrar outro pagamento
+            </button>
+          </li>
+        </ul>
+      )}
+    </div>
   );
 }
