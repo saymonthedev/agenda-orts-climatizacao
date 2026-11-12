@@ -7,6 +7,19 @@ import { DEVELOPER } from '@/lib/site';
 import { telLink, whatsappLink } from '@/lib/links';
 import { InstagramIcon } from './icons';
 
+/** E-mail longo em coluna estreita: quebra de preferência antes do "@". */
+function EmailText({ email }: { email: string }) {
+  const at = email.indexOf('@');
+  if (at <= 0) return <>{email}</>;
+  return (
+    <>
+      {email.slice(0, at)}
+      <wbr />
+      {email.slice(at)}
+    </>
+  );
+}
+
 export function Footer({ profile }: { profile: PublicProfileDTO }) {
   const year = new Date().getFullYear();
   return (
@@ -30,7 +43,7 @@ export function Footer({ profile }: { profile: PublicProfileDTO }) {
           )}
         </div>
 
-        <nav aria-label="Rodapé" className="lg:col-span-2 lg:col-start-6">
+        <nav aria-label="Rodapé" className="lg:col-span-2 lg:col-start-5">
           <p className="eyebrow text-[11px] text-champagne-400">Navegação</p>
           <ul className="mt-5 space-y-3 text-[15px]">
             {navigation.map((item) => (
@@ -56,28 +69,28 @@ export function Footer({ profile }: { profile: PublicProfileDTO }) {
           </ul>
         </div>
 
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-3">
           <p className="eyebrow text-[11px] text-champagne-400">Atendimento</p>
           <ul className="mt-5 space-y-3 text-[15px] text-porcelain/70">
             <li>{profile.address ?? 'Jaraguá do Sul - SC'}</li>
             {profile.whatsapp && (
               <li>
                 <a href={whatsappLink(profile.whatsapp)} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-porcelain">
-                  WhatsApp {formatPhone(profile.whatsapp)}
+                  WhatsApp <span className="whitespace-nowrap">{formatPhone(profile.whatsapp)}</span>
                 </a>
               </li>
             )}
             {profile.phone && (
               <li>
-                <a href={telLink(profile.phone)} className="transition-colors hover:text-porcelain">
+                <a href={telLink(profile.phone)} className="whitespace-nowrap transition-colors hover:text-porcelain">
                   {formatPhone(profile.phone)}
                 </a>
               </li>
             )}
             {profile.email && (
               <li>
-                <a href={`mailto:${profile.email}`} className="break-all transition-colors hover:text-porcelain">
-                  {profile.email}
+                <a href={`mailto:${profile.email}`} className="[overflow-wrap:anywhere] transition-colors hover:text-porcelain">
+                  <EmailText email={profile.email} />
                 </a>
               </li>
             )}
