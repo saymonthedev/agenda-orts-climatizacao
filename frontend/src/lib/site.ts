@@ -4,7 +4,7 @@ export function siteUrl(): string {
   if (explicit) return explicit.replace(/\/+$/, '');
   const production = process.env.VERCEL_PROJECT_PRODUCTION_URL;
   if (production) return `https://${production}`;
-  return 'https://orts-jaragua.vercel.app';
+  return 'https://orts-climatizacao.vercel.app';
 }
 
 export const DEVELOPER = {

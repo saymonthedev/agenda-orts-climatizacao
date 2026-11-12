@@ -5,8 +5,8 @@ Projeto da **ORTS Climatização** (Vila Nova, Jaraguá do Sul/SC) com duas part
 1. **Site institucional** público: apresenta a empresa, os serviços e os trabalhos realizados, e leva o visitante a pedir atendimento pelo WhatsApp.
 2. **Sistema privado de agendamentos** (`/admin`): usado só pelo proprietário para organizar os atendimentos. Visitantes não têm acesso.
 
-- Produção (endereço provisório): **https://orts-jaragua.vercel.app**
-- Painel: **https://orts-jaragua.vercel.app/admin**
+- Site: **https://ortsclimatizacao.com.br** (domínio próprio; também responde em https://orts-climatizacao.vercel.app, e o antigo `orts-jaragua.vercel.app` redireciona)
+- Painel: **https://ortsclimatizacao.com.br/admin**
 
 ---
 
@@ -19,7 +19,7 @@ Projeto da **ORTS Climatização** (Vila Nova, Jaraguá do Sul/SC) com duas part
 
 ### Como o Rafael acessa a agenda
 
-1. Abrir **orts-jaragua.vercel.app/admin** (pelo computador ou pelo celular).
+1. Abrir **ortsclimatizacao.com.br/admin** (pelo computador ou pelo celular).
 2. Entrar com o usuário **`rafael.souza`** e a senha inicial combinada.
 3. Trocar a senha em **Configurações → Acesso** no primeiro acesso.
 4. No celular, usar **"Adicionar à tela inicial"** para instalar o painel como o app **ORTS Agenda**, que abre direto na agenda.
@@ -120,7 +120,7 @@ O site abre em http://localhost:3000 e o painel em http://localhost:3000/admin. 
 | `DATABASE_URL_UNPOOLED` | build | Conexão direta, usada pelas migrations quando existe (preenchida pela integração). |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` / `ADMIN_NAME` | build/local | Conta administrativa inicial. Criada **só se não houver nenhum usuário**. Nunca colocar no repositório. |
 | `SESSION_TTL_DAYS` | backend | Duração da sessão, renovada com o uso (padrão: 30). |
-| `APP_ORIGIN` | backend | Origem pública aceita na verificação contra CSRF (ex.: https://orts-jaragua.vercel.app). |
+| `APP_ORIGIN` | backend | Origem pública aceita na verificação contra CSRF (ex.: https://orts-climatizacao.vercel.app). |
 | `NEXT_PUBLIC_SITE_URL` | frontend | URL pública usada em metadados, sitemap e Open Graph. |
 | `PGLITE_DATA_DIR` | local | Pasta do PGlite (relativa a `~/.orts-agenda/`). |
 | `RUN_MIGRATIONS` | build | `true` para aplicar migrations também em deploys de preview. |
@@ -191,26 +191,34 @@ npm run test:e2e
 
 ## Deploy (Vercel + Neon)
 
-O projeto **orts-jaragua** na Vercel está ligado a este repositório, com `frontend` como diretório raiz. O `frontend/vercel.json` instala o monorepo, roda as migrations e faz o build. As funções ficam em São Paulo (`gru1`).
+O projeto **orts-climatizacao** na Vercel está ligado a este repositório, com `frontend` como diretório raiz. O `frontend/vercel.json` instala o monorepo, roda as migrations e faz o build. As funções ficam em São Paulo (`gru1`).
 
-O banco já está ligado: Neon **orts-jaragua** (São Paulo, `gru1`, plano Free), criado pela integração Neon da Vercel e conectado **só ao ambiente de produção**, com as variáveis marcadas como sensíveis. O primeiro build com o banco aplicou as migrations e criou a conta `rafael.souza`.
+O banco já está ligado: Neon **orts-climatizacao** (São Paulo, `gru1`, plano Free), criado pela integração Neon da Vercel e conectado **só ao ambiente de produção**, com as variáveis marcadas como sensíveis. O primeiro build com o banco aplicou as migrations e criou a conta `rafael.souza`.
 
 Para recriar o banco do zero:
 
-1. Na Vercel, abra **orts-jaragua → Storage → Create Database → Neon**, escolha a região **São Paulo** e conecte só ao ambiente **Production**. A integração cria `DATABASE_URL` e `DATABASE_URL_UNPOOLED`.
+1. Na Vercel, abra **orts-climatizacao → Storage → Create Database → Neon**, escolha a região **São Paulo** e conecte só ao ambiente **Production**. A integração cria `DATABASE_URL` e `DATABASE_URL_UNPOOLED`.
 2. Gere um novo deploy de produção (**Deployments → Redeploy**). O build aplica as migrations e, se ainda não houver usuários, cria a conta inicial com `ADMIN_USERNAME`/`ADMIN_PASSWORD` (já configuradas como variáveis de produção).
 
 Depois do primeiro acesso, troque a senha pelo painel (**Configurações → Acesso**) e, se quiser, remova `ADMIN_PASSWORD` das variáveis da Vercel.
 
-Domínio definitivo: adicione-o em **Settings → Domains** e atualize `NEXT_PUBLIC_SITE_URL` e `APP_ORIGIN`.
+Domínio próprio: **ortsclimatizacao.com.br**, registrado no registro.br com o DNS em modo avançado. Registros na zona:
+
+| Tipo | Nome | Dados |
+|---|---|---|
+| A | *(vazio)* | `216.150.1.1` |
+| A | *(vazio)* | `216.150.16.1` |
+| CNAME | `www` | `8d4bba18e437be9d.vercel-dns-016.com` |
+
+O `www` redireciona para o domínio sem `www`. Com o domínio ativo, `NEXT_PUBLIC_SITE_URL` e `APP_ORIGIN` usam `https://ortsclimatizacao.com.br`, e os endereços `*.vercel.app` redirecionam para ele.
 
 ## Identidade visual
 
-O símbolo da logo (casa, floco de neve, hélice e fluxo de ar) foi vetorizado a partir do arquivo original, preservando seus elementos, e recebeu variações em `frontend/public/brand/`:
+O símbolo da logo (casa, floco de neve, hélice e fluxo de ar) foi vetorizado a partir do arquivo original, preservando seus elementos, e recebeu variações em `frontend/public/brand/`. Em toda a marca o nome é só **ORTS Climatização**, com a onda da logo original logo abaixo dele:
 
 | Arquivo | Uso |
 |---|---|
-| `logo-principal.svg` / `-negativo.svg` | Versão empilhada, como a original, para fundos claros e escuros |
+| `logo-principal.svg` / `-negativo.svg` | Versão empilhada (símbolo, nome e onda) para fundos claros e escuros |
 | `logo-horizontal.svg` / `-negativo.svg` | Cabeçalhos e rodapés |
 | `logo-*-mono-preto.svg` / `-mono-branco.svg` | Aplicações em uma cor |
 | `simbolo.svg` / `simbolo-reduzido.svg` | Só o símbolo |
@@ -218,12 +226,18 @@ O símbolo da logo (casa, floco de neve, hélice e fluxo de ar) foi vetorizado a
 
 Paleta tirada do medalhão da logo: **azul-marinho** `#1C2B45`, **ardósia** `#3F6578`, **champanhe** `#D4C19C`, **sálvia** `#ABAD92` e **porcelana** `#F4F1EA`. Tipografia: Instrument Sans e Instrument Serif (itálico) no site; Montserrat apenas no logotipo.
 
-## Dados a confirmar com o cliente
+## Dados do cliente
 
-Nada foi inventado. O que não estava em fontes públicas fica oculto até ser preenchido em **Painel → Configurações → Dados do site**, e o site atualiza sozinho:
+Nada foi inventado. Os dados de contato ficam em **Painel → Configurações → Dados do site**; o que estiver vazio fica oculto, e o site atualiza sozinho.
 
-- [ ] WhatsApp (principal canal do site)
-- [ ] Telefone e e-mail
+Confirmados pelo cliente:
+
+- Telefone e WhatsApp: **(47) 99183-7343**
+- E-mail: **ortsclimatizacaojaragua@gmail.com**
+- Domínio: **ortsclimatizacao.com.br**
+
+Ainda a confirmar:
+
 - [ ] Instagram
 - [ ] Mostrar ou não o horário de atendimento no site
 - [ ] Confirmar a lista de serviços oferecidos (`frontend/src/content/site.ts`) e os tipos de serviço do painel

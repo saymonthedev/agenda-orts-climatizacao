@@ -5,14 +5,14 @@ type LogoProps = {
   className?: string;
 };
 
-const RATIO = 945 / 120;
+const RATIO = 990 / 120;
 
 /** Logo horizontal (símbolo + nome). Variante negativa para fundos escuros. */
 export function LogoHorizontal({ variant = 'positive', className }: LogoProps) {
   const src = variant === 'negative' ? '/brand/logo-horizontal-negativo.svg' : '/brand/logo-horizontal.svg';
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt="ORTS Climatização Jaraguá" width={Math.round(36 * RATIO)} height={36} className={cn('h-9 w-auto', className)} />
+    <img src={src} alt="ORTS Climatização" width={Math.round(36 * RATIO)} height={36} className={cn('h-9 w-auto', className)} />
   );
 }
 
@@ -23,7 +23,7 @@ export function LogoSwap({ dark, className }: { dark: boolean; className?: strin
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/brand/logo-horizontal-negativo.svg"
-        alt="ORTS Climatização Jaraguá"
+        alt="ORTS Climatização"
         width={Math.round(36 * RATIO)}
         height={36}
         className={cn('block w-auto transition-opacity duration-300', className, dark ? 'opacity-100' : 'opacity-0')}
@@ -45,7 +45,7 @@ export function LogoStacked({ variant = 'positive', className }: LogoProps) {
   const src = variant === 'negative' ? '/brand/logo-principal-negativo.svg' : '/brand/logo-principal.svg';
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt="ORTS Climatização Jaraguá" width={1160} height={752} className={cn('h-auto w-48', className)} />
+    <img src={src} alt="ORTS Climatização" width={1160} height={659} className={cn('h-auto w-48', className)} />
   );
 }
 
