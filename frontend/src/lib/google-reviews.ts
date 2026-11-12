@@ -2,10 +2,11 @@
  * Avaliações do Perfil da Empresa no Google, pela Places API (New).
  *
  * Configuração (variáveis de ambiente do servidor):
- *   GOOGLE_PLACES_API_KEY  chave com a "Places API (New)" ativada
- *   GOOGLE_PLACE_ID        ID do lugar (ChIJ…) do perfil "ORTS Climatização Jaraguá"
+ *   GOOGLE_PLACES_API_KEY  chave com a "Places API (New)" ativada (obrigatória)
+ *   GOOGLE_PLACE_ID        ID do lugar (ChIJ…); opcional: sem ele, o perfil é encontrado
+ *                          pelo nome (GOOGLE_PLACE_QUERY, padrão "ORTS Climatização Jaraguá do Sul")
  *
- * Sem configuração, ou se o Google falhar, devolve null e a seção não aparece.
+ * Sem a chave, ou se o Google falhar, devolve null e a seção não aparece.
  * O resultado fica em cache por 6 horas (≈4 consultas por dia, dentro da cota gratuita).
  */
 
@@ -48,23 +49,44 @@ const CACHE_SECONDS = 6 * 60 * 60;
 export async function getGoogleReviews(): Promise<GoogleReviews | null> {
   if (process.env.GOOGLE_REVIEWS_FIXTURE === '1' && process.env.NODE_ENV !== 'production') return FIXTURE;
   const key = process.env.GOOGLE_PLACES_API_KEY;
+  if (!key) return null;
   const placeId = process.env.GOOGLE_PLACE_ID;
-  if (!key || !placeId) return null;
 
   try {
-    const res = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}?languageCode=pt-BR&regionCode=BR`, {
-      headers: { 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': FIELDS },
+    if (placeId) {
+      const res = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}?languageCode=pt-BR&regionCode=BR`, {
+        headers: { 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': FIELDS },
+        next: { revalidate: CACHE_SECONDS },
+      });
+      if (!res.ok) return warn(res.status);
+      return normalize(placeId, (await res.json()) as PlaceResponse);
+    }
+    // Sem o ID do lugar: encontra o perfil pelo nome (o mesmo do Google) numa busca só.
+    const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': key,
+        'X-Goog-FieldMask': ['places.id', 'places.displayName', ...FIELDS.split(',').map((f) => `places.${f}`)].join(','),
+      },
+      body: JSON.stringify({ textQuery: process.env.GOOGLE_PLACE_QUERY || 'ORTS Climatização Jaraguá do Sul', languageCode: 'pt-BR', regionCode: 'BR', pageSize: 5 }),
       next: { revalidate: CACHE_SECONDS },
     });
-    if (!res.ok) {
-      console.warn(JSON.stringify({ level: 'warn', message: 'Avaliações do Google indisponíveis', status: res.status }));
-      return null;
-    }
-    return normalize(placeId, (await res.json()) as PlaceResponse);
+    if (!res.ok) return warn(res.status);
+    const { places = [] } = (await res.json()) as { places?: (PlaceResponse & { id?: string; displayName?: { text?: string } })[] };
+    // só aceita o perfil da ORTS (evita mostrar avaliações de outra empresa)
+    const place = places.find((p) => /\borts\b/i.test(p.displayName?.text ?? ''));
+    if (!place?.id) return warn(404);
+    return normalize(place.id, place);
   } catch (err) {
     console.warn(JSON.stringify({ level: 'warn', message: 'Falha ao buscar avaliações do Google', error: err instanceof Error ? err.message : 'erro' }));
     return null;
   }
+}
+
+function warn(status: number): null {
+  console.warn(JSON.stringify({ level: 'warn', message: 'Avaliações do Google indisponíveis', status }));
+  return null;
 }
 
 function normalize(placeId: string, data: PlaceResponse): GoogleReviews | null {

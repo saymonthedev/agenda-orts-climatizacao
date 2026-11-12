@@ -244,7 +244,7 @@ Para o Google encontrar e indexar o domínio:
 
 A seção **Avaliações** mostra a nota, o total e até quatro avaliações com texto do Perfil da Empresa no Google ("ORTS Climatização Jaraguá"), com o nome e a foto de cada autor, a atribuição "Google Maps" e os botões **Ver no Google** e **Avaliar a ORTS**. Os dados vêm da **Places API (New)** no servidor, com cache de 6 horas (cerca de 4 consultas por dia, dentro da cota gratuita do Google).
 
-Configuração na Vercel (Production): `GOOGLE_PLACES_API_KEY` (chave restrita à Places API (New)) e `GOOGLE_PLACE_ID` (ID do lugar, `ChIJ…`). Sem elas, ou se o Google falhar, a seção simplesmente não aparece. Nos testes e no desenvolvimento, `GOOGLE_REVIEWS_FIXTURE=1` usa dados de exemplo (nunca em produção).
+Configuração na Vercel (Production): `GOOGLE_PLACES_API_KEY` (chave restrita à Places API (New)). O perfil é encontrado pelo nome ("ORTS Climatização Jaraguá do Sul", ajustável em `GOOGLE_PLACE_QUERY`), e só é aceito um resultado com "ORTS" no nome; se preferir fixar o lugar, defina `GOOGLE_PLACE_ID` (`ChIJ…`). Sem a chave, ou se o Google falhar, a seção simplesmente não aparece. Nos testes e no desenvolvimento, `GOOGLE_REVIEWS_FIXTURE=1` usa dados de exemplo (nunca em produção).
 
 ## Identidade visual
 
