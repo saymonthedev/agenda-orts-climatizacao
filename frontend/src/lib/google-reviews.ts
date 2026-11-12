@@ -47,7 +47,10 @@ const FIELDS = 'rating,userRatingCount,reviews,googleMapsUri,googleMapsLinks';
 const CACHE_SECONDS = 6 * 60 * 60;
 
 export async function getGoogleReviews(): Promise<GoogleReviews | null> {
-  if (process.env.GOOGLE_REVIEWS_FIXTURE === '1' && process.env.NODE_ENV !== 'production') return FIXTURE;
+  if (process.env.GOOGLE_REVIEWS_FIXTURE && process.env.NODE_ENV !== 'production') {
+    // "1": com comentários; "sem-texto": só a nota (como o perfil da ORTS hoje)
+    return process.env.GOOGLE_REVIEWS_FIXTURE === 'sem-texto' ? { ...FIXTURE, reviews: [] } : FIXTURE;
+  }
   const key = process.env.GOOGLE_PLACES_API_KEY;
   if (!key) return null;
   const placeId = process.env.GOOGLE_PLACE_ID;

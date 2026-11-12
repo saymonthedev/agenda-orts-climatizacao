@@ -72,67 +72,97 @@ function ReviewCard({ review, index }: { review: GoogleReview; index: number }) 
   );
 }
 
+/** Nota, total, atribuição e botões (Ver no Google / Avaliar). */
+function Summary({ data, wide }: { data: GoogleReviews; wide: boolean }) {
+  return (
+    <div className={cn('rounded-xl border border-line bg-porcelain p-6 sm:p-7', wide && 'lg:p-9')}>
+      {data.rating !== null && (
+        <div className="flex items-end gap-4">
+          <span className={cn('display leading-none tracking-[-0.04em] text-ink tabular', wide ? 'text-[4rem] lg:text-[5.25rem]' : 'text-[4rem]')}>{fmtRating(data.rating)}</span>
+          <div className="pb-1.5">
+            <Stars value={data.rating} size={wide ? 'size-6' : 'size-5'} label={`Nota ${fmtRating(data.rating)} de 5`} />
+            <p className="mt-1 text-[14px] text-muted">
+              {data.total} {data.total === 1 ? 'avaliação' : 'avaliações'} no Google
+            </p>
+          </div>
+        </div>
+      )}
+      <p className="mt-5 text-[13px] text-muted">
+        Avaliações publicadas no <span className="font-medium text-ink-soft">Google Maps</span>
+      </p>
+      <div className={cn('mt-6 grid gap-2.5 sm:grid-cols-2', !wide && 'lg:grid-cols-1')}>
+        <a
+          href={data.reviewsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex h-12 w-full items-center justify-center gap-2 whitespace-nowrap rounded-md bg-navy-900 px-5 text-[15px] font-semibold text-porcelain transition-colors hover:bg-navy-800"
+        >
+          Ver no Google <ArrowUpRight className="size-4" aria-hidden="true" />
+        </a>
+        <a
+          href={data.writeReviewUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex h-12 w-full items-center justify-center gap-2 whitespace-nowrap rounded-md border border-line-strong px-5 text-[15px] font-semibold text-ink transition-colors hover:border-ink-soft"
+        >
+          Avaliar a ORTS
+        </a>
+      </div>
+      <p className="mt-4 text-[13px] leading-relaxed text-muted">Já foi atendido pela ORTS? Sua avaliação ajuda outros clientes.</p>
+    </div>
+  );
+}
+
 /** Avaliações do Perfil da Empresa no Google (some quando não há dados). */
 export function Reviews({ data }: { data: GoogleReviews | null }) {
   if (!data) return null;
   const shown = data.reviews.slice(0, 4);
+  const hasCards = shown.length > 0;
+  const heading = (
+    <>
+      <p className="eyebrow flex items-center gap-3 text-steel-600">
+        <span aria-hidden="true" className="h-px w-8 bg-steel-500/60" />
+        Avaliações
+      </p>
+      <h2 id="avaliacoes-titulo" className="display mt-6 text-[2.2rem] leading-[1.05] sm:text-5xl">
+        Quem chamou, <span className="serif-accent text-steel-500">recomenda.</span>
+      </h2>
+    </>
+  );
+
   return (
     <section id="avaliacoes" className="scroll-mt-16 border-t border-line bg-paper py-20 sm:py-24 lg:scroll-mt-20 lg:py-28" aria-labelledby="avaliacoes-titulo">
       <div className="container-page">
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-16">
-          <div className="lg:col-span-4 lg:self-start lg:sticky lg:top-28" data-reveal>
-            <p className="eyebrow flex items-center gap-3 text-steel-600">
-              <span aria-hidden="true" className="h-px w-8 bg-steel-500/60" />
-              Avaliações
-            </p>
-            <h2 id="avaliacoes-titulo" className="display mt-6 text-[2.2rem] leading-[1.05] sm:text-5xl">
-              Quem chamou, <span className="serif-accent text-steel-500">recomenda.</span>
-            </h2>
-
-            <div className="mt-10 rounded-xl border border-line bg-porcelain p-6 sm:p-7">
-              {data.rating !== null && (
-                <div className="flex items-end gap-4">
-                  <span className="display text-[4rem] leading-none tracking-[-0.04em] text-ink tabular">{fmtRating(data.rating)}</span>
-                  <div className="pb-1.5">
-                    <Stars value={data.rating} size="size-5" label={`Nota ${fmtRating(data.rating)} de 5`} />
-                    <p className="mt-1 text-[14px] text-muted">
-                      {data.total} {data.total === 1 ? 'avaliação' : 'avaliações'}
-                    </p>
-                  </div>
-                </div>
-              )}
-              <p className="mt-5 text-[13px] text-muted">
-                Avaliações publicadas no <span className="font-medium text-ink-soft">Google Maps</span>
-              </p>
-              <div className="mt-6 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-1">
-                <a
-                  href={data.reviewsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex h-12 w-full items-center justify-center gap-2 whitespace-nowrap rounded-md bg-navy-900 px-5 text-[15px] font-semibold text-porcelain transition-colors hover:bg-navy-800"
-                >
-                  Ver no Google <ArrowUpRight className="size-4" aria-hidden="true" />
-                </a>
-                <a
-                  href={data.writeReviewUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex h-12 w-full items-center justify-center gap-2 whitespace-nowrap rounded-md border border-line-strong px-5 text-[15px] font-semibold text-ink transition-colors hover:border-ink-soft"
-                >
-                  Avaliar a ORTS
-                </a>
+        {hasCards ? (
+          <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-16">
+            <div className="lg:col-span-4 lg:self-start lg:sticky lg:top-28" data-reveal>
+              {heading}
+              <div className="mt-10">
+                <Summary data={data} wide={false} />
               </div>
             </div>
-          </div>
-
-          {shown.length > 0 && (
             <ul className={cn('grid grid-cols-1 gap-5 lg:col-span-8', shown.length > 1 && 'sm:grid-cols-2')} aria-label="Avaliações de clientes">
               {shown.map((r, i) => (
                 <ReviewCard key={`${r.author}-${i}`} review={r} index={i} />
               ))}
             </ul>
-          )}
-        </div>
+          </div>
+        ) : (
+          // ainda sem comentários escritos: título e nota lado a lado
+          <div className="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:items-center lg:gap-16">
+            <div className="lg:col-span-6" data-reveal>
+              {heading}
+              {data.rating !== null && (
+                <p className="mt-6 max-w-md text-lg leading-relaxed text-muted">
+                  {data.rating >= 4.95 ? 'Nota máxima no Google' : `Nota ${fmtRating(data.rating)} no Google`}, dada por quem já foi atendido.
+                </p>
+              )}
+            </div>
+            <div className="lg:col-span-6" data-reveal style={{ ['--reveal-delay' as string]: '120ms' }}>
+              <Summary data={data} wide />
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );
