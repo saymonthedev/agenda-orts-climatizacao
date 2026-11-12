@@ -17,6 +17,22 @@ test.describe('site institucional', () => {
     await noHorizontalOverflow(page);
   });
 
+  test('mostra as avaliações do Google com atribuição e links', async ({ page }) => {
+    await page.goto('/');
+    const section = page.getByRole('region', { name: /Quem chamou, recomenda/ });
+    await section.scrollIntoViewIfNeeded();
+    await expect(section.getByRole('img', { name: 'Nota 5,0 de 5' })).toBeVisible();
+    await expect(section.getByText('4 avaliações')).toBeVisible();
+    await expect(section.getByText('Google Maps')).toBeVisible();
+    await expect(section.getByRole('list', { name: 'Avaliações de clientes' }).getByRole('listitem')).toHaveCount(3);
+    for (const name of ['Ver no Google', 'Avaliar a ORTS']) {
+      const link = section.getByRole('link', { name });
+      await expect(link).toHaveAttribute('target', '_blank');
+      await expect(link).toHaveAttribute('rel', /noopener/);
+    }
+    await noHorizontalOverflow(page);
+  });
+
   test('layout sem estouro em larguras de 320 a 1440 px', async ({ page }) => {
     await page.goto('/');
     await page.evaluate(() => document.querySelectorAll('[data-reveal]').forEach((el) => ((el as HTMLElement).dataset.visible = 'true')));

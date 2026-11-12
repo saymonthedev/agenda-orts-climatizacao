@@ -240,6 +240,12 @@ Para o Google encontrar e indexar o domínio:
 3. Em **Inspeção de URL**, colar `https://ortsclimatizacao.com.br/` e clicar em **Solicitar indexação**.
 4. Para aparecer no mapa e no painel lateral nas buscas locais, criar o **Perfil da Empresa no Google** com o mesmo nome, telefone e site.
 
+### Avaliações do Google no site
+
+A seção **Avaliações** mostra a nota, o total e até quatro avaliações com texto do Perfil da Empresa no Google ("ORTS Climatização Jaraguá"), com o nome e a foto de cada autor, a atribuição "Google Maps" e os botões **Ver no Google** e **Avaliar a ORTS**. Os dados vêm da **Places API (New)** no servidor, com cache de 6 horas (cerca de 4 consultas por dia, dentro da cota gratuita do Google).
+
+Configuração na Vercel (Production): `GOOGLE_PLACES_API_KEY` (chave restrita à Places API (New)) e `GOOGLE_PLACE_ID` (ID do lugar, `ChIJ…`). Sem elas, ou se o Google falhar, a seção simplesmente não aparece. Nos testes e no desenvolvimento, `GOOGLE_REVIEWS_FIXTURE=1` usa dados de exemplo (nunca em produção).
+
 ## Identidade visual
 
 O símbolo da logo (casa, floco de neve, hélice e fluxo de ar) foi vetorizado a partir do arquivo original, preservando seus elementos, e recebeu variações em `frontend/public/brand/`. Em toda a marca o nome é só **ORTS Climatização**, com a onda da logo original logo abaixo dele:

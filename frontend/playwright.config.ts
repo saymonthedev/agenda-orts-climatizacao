@@ -37,6 +37,8 @@ export default defineConfig({
       ADMIN_NAME: 'Teste E2E',
       APP_ORIGIN: `http://localhost:${PORT}`,
       NEXT_PUBLIC_SITE_URL: `http://localhost:${PORT}`,
+      // avaliações de exemplo (a API do Google não é chamada nos testes)
+      GOOGLE_REVIEWS_FIXTURE: '1',
     },
   },
 });

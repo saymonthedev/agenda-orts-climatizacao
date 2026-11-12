@@ -9,7 +9,8 @@ const contentSecurityPolicy = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline'" + (isProd ? '' : " 'unsafe-eval'"),
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
+  // fotos dos autores das avaliações do Google
+  "img-src 'self' data: blob: https://lh3.googleusercontent.com",
   "font-src 'self' data:",
   "connect-src 'self'",
   'frame-src https://www.google.com https://maps.google.com',

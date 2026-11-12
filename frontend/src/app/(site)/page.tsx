@@ -11,8 +11,10 @@ import { Location } from '@/components/site/location';
 import { Process } from '@/components/site/process';
 import { SiteProvider } from '@/components/site/request-context';
 import { RevealController } from '@/components/site/reveal';
+import { Reviews } from '@/components/site/reviews';
 import { Services } from '@/components/site/services';
 import { SITE, images, services } from '@/content/site';
+import { getGoogleReviews } from '@/lib/google-reviews';
 import { siteUrl } from '@/lib/site';
 
 // Página estática, regenerada periodicamente e sempre que os dados comerciais mudam no painel.
@@ -45,7 +47,7 @@ function openingHours(hours: { weekday: number; start: string; end: string }[]) 
 }
 
 export default async function HomePage() {
-  const profile = await getPublicProfile();
+  const [profile, reviews] = await Promise.all([getPublicProfile(), getGoogleReviews()]);
   const url = siteUrl();
 
   const business = {
@@ -112,6 +114,7 @@ export default async function HomePage() {
         <Services />
         <Process />
         <Gallery />
+        <Reviews data={reviews} />
         <Location profile={profile} />
         <Contact profile={profile} />
       </main>

@@ -15,6 +15,8 @@ async function audit(page: Page, label: string) {
 
 test.describe('acessibilidade (axe)', () => {
   test('site institucional', async ({ page }) => {
+    // sem animações de entrada: o axe mede o contraste do estado final, não do meio da transição
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/');
     await page.evaluate(() => document.querySelectorAll('[data-reveal]').forEach((el) => ((el as HTMLElement).dataset.visible = 'true')));
     await audit(page, 'landing');
