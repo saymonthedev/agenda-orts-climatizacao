@@ -45,9 +45,11 @@ test.describe('painel administrativo', () => {
     await details.getByRole('button', { name: 'Editar' }).click();
     const edit = page.getByRole('dialog');
     await edit.getByLabel(/Observações/).fill('Levar escada de 3 metros');
-    await page.getByRole('button', { name: 'Salvar alterações' }).click();
-    await expect(page.getByText('Alterações salvas.')).toBeVisible();
-    await expect(page.getByRole('dialog')).toContainText('Levar escada de 3 metros');
+    // edição salva sozinha
+    await expect(edit.getByRole('status').filter({ hasText: 'Alterações salvas' })).toBeVisible();
+    await edit.getByRole('button', { name: 'Concluir' }).click();
+    // volta para os detalhes (a janela de edição ainda pode estar animando a saída)
+    await expect(page.getByRole('dialog', { name: client })).toContainText('Levar escada de 3 metros');
     await page.keyboard.press('Escape');
 
     // conflito: mesmo horário
@@ -104,12 +106,40 @@ test.describe('painel administrativo', () => {
     const target = (await trigger.textContent())?.includes('15 min') ? '45 min' : '15 min';
     await trigger.click();
     await page.getByRole('option', { name: target }).click();
-    await page.getByRole('button', { name: 'Salvar', exact: true }).click();
-    await expect(page.getByText('Configurações salvas.')).toBeVisible();
+    // salvamento automático, sem botão de salvar
+    await expect(page.getByRole('status').filter({ hasText: 'Alterações salvas' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Salvar', exact: true })).toHaveCount(0);
     await page.reload();
     await page.getByRole('tab', { name: 'Regras' }).click();
     await expect(page.getByLabel('Intervalo entre atendimentos')).toContainText(target);
     await noHorizontalOverflow(page);
+  });
+
+  test('remover pausa pede confirmação e salva sozinho', async ({ page }) => {
+    await login(page);
+    await page.goto('/admin/configuracoes');
+    const pauses = page.getByLabel('Nome da pausa');
+    await expect(pauses.first()).toBeVisible(); // espera os ajustes carregarem antes de contar
+    const before = await pauses.count();
+    await page.getByRole('button', { name: 'Adicionar pausa' }).click();
+    await expect(pauses).toHaveCount(before + 1);
+    await expect(page.getByRole('status').filter({ hasText: 'Alterações salvas' })).toBeVisible();
+    await noHorizontalOverflow(page);
+
+    // cancelar mantém a pausa
+    await page.getByRole('button', { name: /Remover pausa/ }).last().click();
+    const ask = page.getByRole('alertdialog');
+    await expect(ask).toContainText('Remover a pausa');
+    await ask.getByRole('button', { name: 'Cancelar' }).click();
+    await expect(pauses).toHaveCount(before + 1);
+
+    // confirmar remove e salva
+    await page.getByRole('button', { name: /Remover pausa/ }).last().click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Remover' }).click();
+    await expect(pauses).toHaveCount(before);
+    await expect(page.getByRole('status').filter({ hasText: 'Alterações salvas' })).toBeVisible();
+    await page.reload();
+    await expect(page.getByLabel('Nome da pausa')).toHaveCount(before);
   });
 
   test('logout encerra a sessão', async ({ page }) => {

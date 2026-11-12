@@ -4,8 +4,10 @@ import type { BreakWindow, DayHours, ServiceColor, ServiceTypeDTO, SettingsDTO, 
 import { PASSWORD_MIN_LENGTH, SERVICE_COLORS, settingsInputSchema, SLOT_INTERVALS, TEMPLATE_VARIABLES, WEEKDAY_LABELS } from '@orts/backend/contracts';
 import { KeyRound, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Tabs } from 'radix-ui';
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
+import { AutosaveIndicator } from '@/components/ui/autosave-indicator';
 import { Button } from '@/components/ui/button';
+import { useConfirm } from '@/components/ui/confirm';
 import { Dialog } from '@/components/ui/dialog';
 import { TextArea, TextField } from '@/components/ui/field';
 import { maskPhone, PhoneField } from '@/components/ui/phone-field';
@@ -14,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/components/ui/toast';
 import { useChangePassword, useSaveService, useSaveSettings, useServices, useSettings } from '@/hooks/admin/queries';
+import { useAutosave } from '@/hooks/use-autosave';
 import { ApiError } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { formatDurationLabel, timeOf } from '@/lib/format';
@@ -56,11 +59,19 @@ const toForm = (s: SettingsDTO): Form => ({
   confirmationTemplate: s.confirmationTemplate,
 });
 
+function validateSettings(value: Form): Record<string, string> {
+  const parsed = settingsInputSchema.safeParse(value);
+  if (parsed.success) return {};
+  const found: Record<string, string> = {};
+  for (const issue of parsed.error.issues) found[issue.path.join('.')] ??= issue.message;
+  return found;
+}
+
 export function SettingsScreen() {
   const settings = useSettings();
   return (
     <>
-      <PageHeader title="Configurações" subtitle="Horários, regras da agenda, serviços e dados exibidos no site." />
+      <PageHeader title="Configurações" subtitle="Horários, regras da agenda, serviços e dados do site. Tudo é salvo automaticamente." />
       <div className="px-4 sm:px-6 lg:px-10">{settings.data ? <SettingsTabs settings={settings.data} /> : <Skeleton className="h-96" />}</div>
     </>
   );
@@ -80,36 +91,35 @@ function Section({ title, description, children }: { title: string; description?
 
 function SettingsTabs({ settings }: { settings: SettingsDTO }) {
   const save = useSaveSettings();
-  const initial = useMemo(() => toForm(settings), [settings]);
+  const [initial] = useState(() => toForm(settings));
+  const confirm = useConfirm();
   const [form, setForm] = useState<Form>(initial);
-  const [errors, setErrors] = useState<Record<string, string>>({});
   const [tab, setTab] = useState('expediente');
-  useEffect(() => setForm(initial), [initial]);
+  // Salvamento automático: o formulário não é recarregado a cada resposta do servidor,
+  // para não apagar o que a pessoa ainda está digitando.
+  const autosave = useAutosave<Form>({
+    value: form,
+    initial,
+    validate: validateSettings,
+    save: (value: SettingsInput) => save.mutateAsync(value),
+  });
+  const errors = autosave.errors;
 
-  const dirty = JSON.stringify(form) !== JSON.stringify(initial);
   const patch = (p: Partial<Form>) => setForm((f) => ({ ...f, ...p }));
-  const setDay = (weekday: number, p: Partial<DayHours>) => patch({ weeklyHours: form.weeklyHours.map((d) => (d.weekday === weekday ? { ...d, ...p } : d)) });
-  const setBreak = (i: number, p: Partial<BreakWindow>) => patch({ breaks: form.breaks.map((b, j) => (j === i ? { ...b, ...p } : b)) });
+  const setDay = (weekday: number, p: Partial<DayHours>) =>
+    setForm((f) => ({ ...f, weeklyHours: f.weeklyHours.map((d) => (d.weekday === weekday ? { ...d, ...p } : d)) }));
+  const setBreak = (i: number, p: Partial<BreakWindow>) => setForm((f) => ({ ...f, breaks: f.breaks.map((b, j) => (j === i ? { ...b, ...p } : b)) }));
 
-  async function onSave(e?: FormEvent) {
-    e?.preventDefault();
-    const payload: SettingsInput = form;
-    const parsed = settingsInputSchema.safeParse(payload);
-    if (!parsed.success) {
-      const next: Record<string, string> = {};
-      for (const issue of parsed.error.issues) next[issue.path.join('.')] ??= issue.message;
-      setErrors(next);
-      toast.error('Revise os campos destacados.', { description: Object.values(next)[0] });
-      return;
-    }
-    setErrors({});
-    try {
-      await save.mutateAsync(payload);
-      toast.success('Configurações salvas.', { description: 'As regras já valem para novos agendamentos.' });
-    } catch (err) {
-      if (err instanceof ApiError) setErrors(err.fields);
-      toast.error(err instanceof ApiError ? err.message : 'Não foi possível salvar.');
-    }
+  async function removeBreak(i: number) {
+    const b = form.breaks[i];
+    if (!b) return;
+    const ok = await confirm({
+      title: `Remover a pausa “${b.label.trim() || 'sem nome'}”?`,
+      description: `O intervalo das ${b.start} às ${b.end} volta a ficar livre na agenda.`,
+      confirmLabel: 'Remover',
+      tone: 'danger',
+    });
+    if (ok) setForm((f) => ({ ...f, breaks: f.breaks.filter((_, j) => j !== i) }));
   }
 
   const tabs = [
@@ -134,7 +144,14 @@ function SettingsTabs({ settings }: { settings: SettingsDTO }) {
         ))}
       </Tabs.List>
 
-      <form onSubmit={onSave} noValidate autoComplete="off">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void autosave.flush();
+        }}
+        noValidate
+        autoComplete="off"
+      >
         <Tabs.Content value="expediente" className="flex flex-col gap-5 outline-none">
           <Section title="Horário de atendimento" description="Dias e horários em que a agenda aceita atendimentos.">
             <ul className="divide-y divide-line">
@@ -165,13 +182,26 @@ function SettingsTabs({ settings }: { settings: SettingsDTO }) {
           <Section title="Pausas" description="Intervalos sem atendimento em todos os dias (ex.: almoço).">
             <div className="flex flex-col gap-3">
               {form.breaks.map((b, i) => (
-                <div key={i} className="grid grid-cols-2 items-end gap-3 sm:grid-cols-[1fr_140px_140px_auto]">
-                  <TextField label="Nome da pausa" value={b.label} onChange={(e) => setBreak(i, { label: e.target.value })} containerClassName="col-span-2 sm:col-span-1" maxLength={40} />
+                <div
+                  key={i}
+                  className="grid grid-cols-2 items-end gap-3 rounded-md border border-line p-3 sm:grid-cols-[1fr_140px_140px_auto] sm:rounded-none sm:border-0 sm:p-0"
+                >
+                  {/* No celular: nome e lixeira na mesma linha; no computador, a lixeira vai para o fim da linha. */}
+                  <div className="col-span-2 flex items-end gap-2 sm:contents">
+                    <TextField label="Nome da pausa" value={b.label} onChange={(e) => setBreak(i, { label: e.target.value })} containerClassName="min-w-0 flex-1" maxLength={40} />
+                    <Button
+                      variant="danger-ghost"
+                      size="icon"
+                      onClick={() => void removeBreak(i)}
+                      aria-label={`Remover pausa ${b.label}`}
+                      title="Remover pausa"
+                      className="shrink-0 sm:order-last"
+                    >
+                      <Trash2 className="size-4" aria-hidden="true" />
+                    </Button>
+                  </div>
                   <Select label="Início" value={b.start} onChange={(v) => setBreak(i, { start: v })} options={TIME_OPTIONS} />
                   <Select label="Término" value={b.end} onChange={(v) => setBreak(i, { end: v })} options={TIME_OPTIONS} error={errors[`breaks.${i}.end`]} />
-                  <Button variant="danger-ghost" size="icon" onClick={() => patch({ breaks: form.breaks.filter((_, j) => j !== i) })} aria-label={`Remover pausa ${b.label}`} className="col-span-2 w-full sm:col-span-1 sm:w-11">
-                    <Trash2 className="size-4" aria-hidden="true" />
-                  </Button>
                 </div>
               ))}
               {form.breaks.length < 6 && (
@@ -266,22 +296,8 @@ function SettingsTabs({ settings }: { settings: SettingsDTO }) {
           </Section>
         </Tabs.Content>
 
-        {dirty && (tab === 'expediente' || tab === 'regras' || tab === 'site') && (
-          <div className="sticky bottom-[calc(76px+env(safe-area-inset-bottom))] z-20 mt-5 flex items-center justify-between gap-3 rounded-lg border border-line bg-paper/95 p-3 shadow-lift backdrop-blur animate-pop-in lg:bottom-4">
-            <p className="pl-1 text-[13px] font-medium text-ink-soft" aria-live="polite">
-              Alterações não salvas
-            </p>
-            <div className="flex gap-2">
-              <Button variant="ghost" onClick={() => setForm(initial)}>
-                Descartar
-              </Button>
-              <Button type="submit" variant="dark" loading={save.isPending}>
-                Salvar
-              </Button>
-            </div>
-          </div>
-        )}
       </form>
+      <AutosaveIndicator variant="floating" status={autosave.status} message={autosave.message} onRetry={() => void autosave.retry()} />
 
       <Tabs.Content value="servicos" className="outline-none">
         <ServicesManager />
@@ -327,21 +343,64 @@ function ServicesManager() {
   );
 }
 
+type ServiceForm = { name: string; description: string; durationMinutes: number; color: ServiceColor; active: boolean };
+
+const serviceToForm = (s: ServiceTypeDTO): ServiceForm => ({
+  name: s.name,
+  description: s.description ?? '',
+  durationMinutes: s.durationMinutes,
+  color: s.color,
+  active: s.active,
+});
+const serviceInput = (v: ServiceForm) => ({ name: v.name.trim(), description: v.description.trim() || null, durationMinutes: v.durationMinutes, color: v.color, active: v.active });
+const validateService = (v: ServiceForm): Record<string, string> => (v.name.trim().length < 2 ? { name: 'Informe o nome do serviço.' } : {});
+
 function ServiceDialog({ service, onClose }: { service?: ServiceTypeDTO; onClose: () => void }) {
+  return service ? <EditServiceDialog service={service} onClose={onClose} /> : <NewServiceDialog onClose={onClose} />;
+}
+
+function ServiceFields({ value, onChange, errors }: { value: ServiceForm; onChange: (p: Partial<ServiceForm>) => void; errors: Record<string, string> }) {
+  return (
+    <>
+      <TextField label="Nome" value={value.name} onChange={(e) => onChange({ name: e.target.value })} error={errors.name} maxLength={80} />
+      <TextArea label="Descrição" optional rows={2} value={value.description} onChange={(e) => onChange({ description: e.target.value })} maxLength={200} />
+      <Select label="Duração padrão" value={String(value.durationMinutes)} onChange={(v) => onChange({ durationMinutes: Number(v) })} options={DURATIONS} />
+      <fieldset>
+        <legend className="mb-2 text-[13px] font-semibold text-ink-soft">Cor na agenda</legend>
+        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Cor na agenda">
+          {SERVICE_COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              role="radio"
+              aria-checked={value.color === c}
+              aria-label={SERVICE_COLOR_LABEL[c]}
+              title={SERVICE_COLOR_LABEL[c]}
+              onClick={() => onChange({ color: c })}
+              className={cn('size-10 rounded-md ring-offset-2 ring-offset-paper transition-shadow', SERVICE_COLOR[c], value.color === c && 'ring-2 ring-steel-500')}
+            />
+          ))}
+        </div>
+      </fieldset>
+      <Switch checked={value.active} onCheckedChange={(v) => onChange({ active: v })} label="Disponível para novos agendamentos" />
+    </>
+  );
+}
+
+/** Criar é uma ação explícita: o serviço só passa a existir ao confirmar. */
+function NewServiceDialog({ onClose }: { onClose: () => void }) {
   const save = useSaveService();
-  const [name, setName] = useState(service?.name ?? '');
-  const [description, setDescription] = useState(service?.description ?? '');
-  const [duration, setDuration] = useState(String(service?.durationMinutes ?? 90));
-  const [color, setColor] = useState<ServiceColor>(service?.color ?? 'slate');
-  const [active, setActive] = useState(service?.active ?? true);
+  const [value, setValue] = useState<ServiceForm>({ name: '', description: '', durationMinutes: 90, color: 'slate', active: true });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (name.trim().length < 2) return setErrors({ name: 'Informe o nome do serviço.' });
+    const found = validateService(value);
+    setErrors(found);
+    if (Object.keys(found).length) return;
     try {
-      await save.mutateAsync({ id: service?.id, input: { name: name.trim(), description: description.trim() || null, durationMinutes: Number(duration), color, active } });
-      toast.success(service ? 'Serviço atualizado.' : 'Serviço criado.');
+      await save.mutateAsync({ input: serviceInput(value) });
+      toast.success('Serviço criado.');
       onClose();
     } catch (err) {
       if (err instanceof ApiError) {
@@ -355,7 +414,7 @@ function ServiceDialog({ service, onClose }: { service?: ServiceTypeDTO; onClose
     <Dialog
       open
       onOpenChange={(o) => !o && onClose()}
-      title={service ? 'Editar serviço' : 'Novo serviço'}
+      title="Novo serviço"
       size="sm"
       footer={
         <>
@@ -363,33 +422,62 @@ function ServiceDialog({ service, onClose }: { service?: ServiceTypeDTO; onClose
             Cancelar
           </Button>
           <Button type="submit" form="service-form" variant="dark" loading={save.isPending}>
-            Salvar
+            Criar serviço
           </Button>
         </>
       }
     >
       <form id="service-form" onSubmit={submit} noValidate autoComplete="off" className="flex flex-col gap-5">
-        <TextField label="Nome" value={name} onChange={(e) => setName(e.target.value)} error={errors.name} maxLength={80} />
-        <TextArea label="Descrição" optional rows={2} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={200} />
-        <Select label="Duração padrão" value={duration} onChange={setDuration} options={DURATIONS} />
-        <fieldset>
-          <legend className="mb-2 text-[13px] font-semibold text-ink-soft">Cor na agenda</legend>
-          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Cor na agenda">
-            {SERVICE_COLORS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                role="radio"
-                aria-checked={color === c}
-                aria-label={SERVICE_COLOR_LABEL[c]}
-                title={SERVICE_COLOR_LABEL[c]}
-                onClick={() => setColor(c)}
-                className={cn('size-10 rounded-md ring-offset-2 ring-offset-paper transition-shadow', SERVICE_COLOR[c], color === c && 'ring-2 ring-steel-500')}
-              />
-            ))}
-          </div>
-        </fieldset>
-        <Switch checked={active} onCheckedChange={setActive} label="Disponível para novos agendamentos" />
+        <ServiceFields value={value} onChange={(p) => setValue((v) => ({ ...v, ...p }))} errors={errors} />
+      </form>
+    </Dialog>
+  );
+}
+
+/** Editar salva sozinho; fechar a janela envia o que estiver pendente. */
+function EditServiceDialog({ service, onClose }: { service: ServiceTypeDTO; onClose: () => void }) {
+  const save = useSaveService();
+  const [initial] = useState(() => serviceToForm(service));
+  const [value, setValue] = useState(initial);
+  const autosave = useAutosave<ServiceForm>({
+    value,
+    initial,
+    validate: validateService,
+    save: (v) => save.mutateAsync({ id: service.id, input: serviceInput(v) }),
+  });
+  const errors = autosave.status === 'error' && autosave.message?.toLowerCase().includes('já existe') ? { ...autosave.errors, name: 'Já existe um serviço com esse nome.' } : autosave.errors;
+
+  return (
+    <Dialog
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title="Editar serviço"
+      size="sm"
+      footer={
+        <>
+          <AutosaveIndicator status={autosave.status} message={autosave.message} onRetry={() => void autosave.retry()} className="mr-auto" />
+          <Button
+            variant="dark"
+            onClick={async () => {
+              await autosave.flush();
+              onClose();
+            }}
+          >
+            Concluir
+          </Button>
+        </>
+      }
+    >
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void autosave.flush();
+        }}
+        noValidate
+        autoComplete="off"
+        className="flex flex-col gap-5"
+      >
+        <ServiceFields value={value} onChange={(p) => setValue((v) => ({ ...v, ...p }))} errors={errors} />
       </form>
     </Dialog>
   );

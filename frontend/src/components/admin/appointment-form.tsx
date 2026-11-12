@@ -4,7 +4,9 @@ import type { AppointmentDTO, AppointmentStatus, ScheduleViolation } from '@orts
 import { appointmentCreateSchema, APPOINTMENT_STATUSES, STATUS_LABELS } from '@orts/backend/contracts';
 import { AlertTriangle } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { AutosaveIndicator } from '@/components/ui/autosave-indicator';
 import { Button } from '@/components/ui/button';
+import { useConfirm } from '@/components/ui/confirm';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Dialog } from '@/components/ui/dialog';
 import { TextArea, TextField } from '@/components/ui/field';
@@ -13,6 +15,7 @@ import { Select } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/components/ui/toast';
 import { useAvailability, useCreateAppointment, useServices, useSettings, useUpdateAppointment } from '@/hooks/admin/queries';
+import { useAutosave } from '@/hooks/use-autosave';
 import { ApiError } from '@/lib/api';
 import { formatDurationLabel, todayISO } from '@/lib/format';
 import { ServiceDot } from './status';
@@ -67,7 +70,21 @@ function initialFields(appointment?: AppointmentDTO, prefill?: FormPrefill): Fie
   };
 }
 
-/** Cadastro e edição de atendimentos, com validação compartilhada com o backend. */
+const toPayload = (f: Fields, allowOutsideHours: boolean) => ({ ...f, notes: f.notes.trim() || null, allowOutsideHours });
+type Payload = ReturnType<typeof toPayload>;
+
+function validateAppointment(payload: Payload): Record<string, string> {
+  const parsed = appointmentCreateSchema.safeParse(payload);
+  if (parsed.success) return {};
+  const found: Record<string, string> = {};
+  for (const issue of parsed.error.issues) found[String(issue.path[0] ?? '_')] ??= issue.message;
+  return found;
+}
+
+/**
+ * Cadastro e edição de atendimentos, com validação compartilhada com o backend.
+ * Criar é uma ação explícita; na edição, cada alteração válida é salva sozinha.
+ */
 export function AppointmentForm({
   open,
   onOpenChange,
@@ -94,6 +111,9 @@ export function AppointmentForm({
   const [violations, setViolations] = useState<ScheduleViolation[] | null>(null);
   const [conflict, setConflict] = useState<string | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
+  const confirm = useConfirm();
+  const lastSaved = useRef<AppointmentDTO | null>(null);
+  const [initialPayload] = useState(() => toPayload(initialFields(appointment, prefill), false));
 
   const set = <K extends keyof Fields>(key: K, value: Fields[K]) => {
     setF((prev) => ({ ...prev, [key]: value }));
@@ -123,6 +143,56 @@ export function AppointmentForm({
   const timeUnchanged = editing && appointment?.date === f.date && appointment?.startTime === f.startTime && appointment?.durationMinutes === f.durationMinutes;
   const needsOverride = !timeUnchanged && (isWarningState(slotState) || (availability.data && !availability.data.open) || Boolean(violations?.length));
 
+  const autosave = useAutosave<Payload>({
+    value: toPayload(f, allowOutside),
+    initial: initialPayload,
+    enabled: editing && open,
+    delay: 800,
+    validate: (payload) => {
+      const found = validateAppointment(payload);
+      if (!Object.keys(found).length && needsOverride && !payload.allowOutsideHours) {
+        found.startTime = 'Horário fora das regras da agenda: ative “Registrar como encaixe” para usá-lo.';
+      }
+      return found;
+    },
+    save: async (payload) => {
+      if (!appointment) return;
+      setConflict(null);
+      try {
+        lastSaved.current = await update.mutateAsync({ id: appointment.id, input: payload });
+        setViolations(null);
+      } catch (err) {
+        if (err instanceof ApiError && err.code === 'OUTSIDE_SCHEDULE') {
+          setViolations((err.details as { violations?: ScheduleViolation[] })?.violations ?? [{ code: 'OUTSIDE_HOURS', message: err.message }]);
+        } else if (err instanceof ApiError && err.code === 'SCHEDULE_CONFLICT') {
+          setConflict(err.message);
+        }
+        throw err;
+      }
+    },
+  });
+  const shownErrors = editing ? { ...errors, ...autosave.errors } : errors;
+
+  /** Fecha a edição salvando o que estiver pendente; se algo não pôde ser salvo, pergunta antes. */
+  async function closeEditing() {
+    const outcome = await autosave.flush();
+    if (outcome === 'invalid' || outcome === 'error') {
+      const ok = await confirm({
+        title: 'Fechar sem salvar a última alteração?',
+        description:
+          outcome === 'invalid'
+            ? 'Há um campo que precisa ser corrigido. O restante do atendimento já está salvo.'
+            : 'A última alteração foi recusada (por exemplo, por conflito de horário). O restante já está salvo.',
+        confirmLabel: 'Fechar sem salvar',
+        cancelLabel: 'Continuar editando',
+        tone: 'danger',
+      });
+      if (!ok) return;
+    }
+    onOpenChange(false);
+    if (appointment) onSaved?.(lastSaved.current ?? appointment);
+  }
+
   const serviceOptions = useMemo(
     () =>
       (services.data ?? [])
@@ -146,11 +216,11 @@ export function AppointmentForm({
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    const payload = {
-      ...f,
-      notes: f.notes.trim() || null,
-      allowOutsideHours: allowOutside,
-    };
+    if (editing) {
+      void autosave.flush();
+      return;
+    }
+    const payload = toPayload(f, allowOutside);
     const parsed = appointmentCreateSchema.safeParse(payload);
     if (!parsed.success) {
       const next: Record<string, string> = {};
@@ -166,10 +236,8 @@ export function AppointmentForm({
     setErrors({});
     setConflict(null);
     try {
-      const saved = editing && appointment
-        ? await update.mutateAsync({ id: appointment.id, input: payload })
-        : await create.mutateAsync(payload);
-      toast.success(editing ? 'Alterações salvas.' : 'Atendimento agendado.', {
+      const saved = await create.mutateAsync(payload);
+      toast.success('Atendimento agendado.', {
         description: `${saved.clientName} · ${saved.startTime}`,
       });
       onOpenChange(false);
@@ -194,30 +262,39 @@ export function AppointmentForm({
   return (
     <Dialog
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={(next) => (editing && !next ? void closeEditing() : onOpenChange(next))}
       size="lg"
       title={editing ? 'Editar atendimento' : 'Novo agendamento'}
-      description={editing ? 'Altere os dados e salve. Conflitos de horário são verificados automaticamente.' : 'Preencha os dados do cliente e escolha um horário livre.'}
+      description={editing ? 'As alterações são salvas automaticamente. Conflitos de horário são verificados na hora.' : 'Preencha os dados do cliente e escolha um horário livre.'}
       onOpenAutoFocus={(e) => {
         e.preventDefault();
         nameRef.current?.focus();
       }}
       footer={
-        <>
-          <Button variant="secondary" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button type="submit" form="appointment-form" variant="dark" loading={saving}>
-            {editing ? 'Salvar alterações' : 'Agendar atendimento'}
-          </Button>
-        </>
+        editing ? (
+          <>
+            <AutosaveIndicator status={autosave.status} message={autosave.message} onRetry={() => void autosave.retry()} className="mr-auto" />
+            <Button variant="dark" onClick={() => void closeEditing()}>
+              Concluir
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button variant="secondary" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" form="appointment-form" variant="dark" loading={saving}>
+              Agendar atendimento
+            </Button>
+          </>
+        )
       }
     >
       <form id="appointment-form" onSubmit={onSubmit} noValidate autoComplete="off" className="flex flex-col gap-7">
         <fieldset className="grid gap-4 sm:grid-cols-2">
           <legend className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-subtle">Cliente</legend>
-          <TextField ref={nameRef} label="Nome do cliente" value={f.clientName} onChange={(e) => set('clientName', e.target.value)} error={errors.clientName} maxLength={120} />
-          <PhoneField label="Telefone / WhatsApp" value={f.clientPhone} onChange={(v) => set('clientPhone', v)} error={errors.clientPhone} />
+          <TextField ref={nameRef} label="Nome do cliente" value={f.clientName} onChange={(e) => set('clientName', e.target.value)} error={shownErrors.clientName} maxLength={120} />
+          <PhoneField label="Telefone / WhatsApp" value={f.clientPhone} onChange={(v) => set('clientPhone', v)} error={shownErrors.clientPhone} />
         </fieldset>
 
         <fieldset className="grid gap-4 sm:grid-cols-2">
@@ -228,7 +305,7 @@ export function AppointmentForm({
             onChange={(v) => set('serviceTypeId', v)}
             options={serviceOptions}
             placeholder={services.isLoading ? 'Carregando…' : 'Escolha o serviço'}
-            error={errors.serviceTypeId}
+            error={shownErrors.serviceTypeId}
           />
           <Select label="Status" value={f.status} onChange={(v) => set('status', v as AppointmentStatus)} options={statusOptions} />
         </fieldset>
@@ -236,7 +313,7 @@ export function AppointmentForm({
         <fieldset className="flex flex-col gap-4">
           <legend className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-subtle">Quando</legend>
           <div className="grid gap-4 sm:grid-cols-2">
-            <DatePicker label="Data" value={f.date} onChange={(d) => set('date', d)} error={errors.date} />
+            <DatePicker label="Data" value={f.date} onChange={(d) => set('date', d)} error={shownErrors.date} />
             <Select
               label="Duração"
               value={f.durationMinutes ? String(f.durationMinutes) : ''}
@@ -245,7 +322,7 @@ export function AppointmentForm({
                 set('durationMinutes', Number(v));
               }}
               options={durationOptions}
-              error={errors.durationMinutes}
+              error={shownErrors.durationMinutes}
               hint={availability.data?.bufferMinutes ? `Intervalo de ${formatDurationLabel(availability.data.bufferMinutes)} entre atendimentos.` : undefined}
             />
           </div>
@@ -255,7 +332,7 @@ export function AppointmentForm({
             value={f.startTime}
             onChange={(t) => set('startTime', t)}
             keepTime={keepTime}
-            error={errors.startTime}
+            error={shownErrors.startTime}
           />
           {conflict && (
             <div role="alert" className="flex gap-3 rounded-md border border-danger/25 bg-danger-bg px-4 py-3 text-[14px] leading-snug text-[#7f2f25]">
@@ -297,12 +374,12 @@ export function AppointmentForm({
             placeholder="Rua, número e complemento"
             value={f.address}
             onChange={(e) => set('address', e.target.value)}
-            error={errors.address}
+            error={shownErrors.address}
             containerClassName="sm:col-span-2"
             maxLength={200}
           />
-          <TextField label="Bairro" value={f.neighborhood} onChange={(e) => set('neighborhood', e.target.value)} error={errors.neighborhood} maxLength={80} />
-          <TextField label="Cidade" value={f.city} onChange={(e) => set('city', e.target.value)} error={errors.city} maxLength={80} />
+          <TextField label="Bairro" value={f.neighborhood} onChange={(e) => set('neighborhood', e.target.value)} error={shownErrors.neighborhood} maxLength={80} />
+          <TextField label="Cidade" value={f.city} onChange={(e) => set('city', e.target.value)} error={shownErrors.city} maxLength={80} />
         </fieldset>
 
         <TextArea
@@ -311,7 +388,7 @@ export function AppointmentForm({
           placeholder="Modelo do aparelho, acesso ao local, materiais…"
           value={f.notes}
           onChange={(e) => set('notes', e.target.value)}
-          error={errors.notes}
+          error={shownErrors.notes}
           maxLength={2000}
         />
       </form>
