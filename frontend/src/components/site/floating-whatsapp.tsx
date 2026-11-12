@@ -6,19 +6,36 @@ import { whatsappLink } from '@/lib/links';
 import { WhatsAppIcon } from './icons';
 import { useSite } from './request-context';
 
-/** Atalho flutuante para o WhatsApp (aparece depois da primeira dobra). */
+/**
+ * Atalho flutuante para o WhatsApp: aparece depois da primeira dobra e some
+ * enquanto o contato ou o rodapé estão na tela (eles já têm o WhatsApp em
+ * destaque, e o botão cobriria o conteúdo).
+ */
 export function FloatingWhatsApp() {
   const { profile } = useSite();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => {
-      const nearEnd = window.innerHeight + window.scrollY > document.body.scrollHeight - 520;
-      setVisible(window.scrollY > window.innerHeight * 0.8 && !nearEnd);
+    const zones = ['#contato', 'footer']
+      .map((selector) => document.querySelector(selector))
+      .filter((el): el is Element => el !== null);
+    const onScreen = new Set<Element>();
+    const update = () => setVisible(window.scrollY > window.innerHeight * 0.8 && onScreen.size === 0);
+
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) onScreen.add(entry.target);
+        else onScreen.delete(entry.target);
+      }
+      update();
+    });
+    zones.forEach((zone) => observer.observe(zone));
+    update();
+    window.addEventListener('scroll', update, { passive: true });
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('scroll', update);
     };
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
   if (!profile.whatsapp) return null;
