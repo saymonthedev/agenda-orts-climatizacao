@@ -8,8 +8,11 @@ test.describe('site institucional', () => {
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Ar-condicionado');
     await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', /Jaraguá do Sul/);
     await expect(page.locator('meta[property="og:image"]').first()).toHaveAttribute('content', /opengraph-image/);
-    const jsonLd = await page.locator('script[type="application/ld+json"]').textContent();
-    expect(JSON.parse(jsonLd ?? '{}')['@type']).toBe('HVACBusiness');
+    const jsonLd = JSON.parse((await page.locator('script[type="application/ld+json"]').textContent()) ?? '{}');
+    const nodes: { '@type': string; name?: string; alternateName?: string[] }[] = jsonLd['@graph'] ?? [jsonLd];
+    expect(nodes.find((n) => n['@type'] === 'HVACBusiness')?.name).toBe('ORTS Climatização');
+    // nome do site nos resultados do Google, com as variações usadas nas buscas
+    expect(nodes.find((n) => n['@type'] === 'WebSite')?.alternateName).toContain('ORTS Climatização Jaraguá do Sul');
     await expect(page.getByText('Vila Nova, Jaraguá do Sul - SC').first()).toBeVisible();
     await noHorizontalOverflow(page);
   });

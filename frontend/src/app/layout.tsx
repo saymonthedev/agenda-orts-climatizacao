@@ -28,6 +28,8 @@ export const metadata: Metadata = {
   authors: [{ name: SITE.name }],
   creator: SITE.name,
   formatDetection: { telephone: false, email: false, address: false },
+  // Código do Google Search Console (método "tag HTML"), definido na Vercel quando necessário.
+  ...(process.env.GOOGLE_SITE_VERIFICATION ? { verification: { google: process.env.GOOGLE_SITE_VERIFICATION } } : {}),
 };
 
 export const viewport: Viewport = {

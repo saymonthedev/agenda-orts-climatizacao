@@ -32,15 +32,27 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
+const SCHEMA_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+/** Horário de atendimento no formato do schema.org, agrupando os dias com o mesmo horário. */
+function openingHours(hours: { weekday: number; start: string; end: string }[]) {
+  const groups = new Map<string, number[]>();
+  for (const h of hours) groups.set(`${h.start}-${h.end}`, [...(groups.get(`${h.start}-${h.end}`) ?? []), h.weekday]);
+  return [...groups.entries()].map(([range, days]) => {
+    const [opens, closes] = range.split('-');
+    return { '@type': 'OpeningHoursSpecification', dayOfWeek: days.map((d) => `https://schema.org/${SCHEMA_DAYS[d]}`), opens, closes };
+  });
+}
+
 export default async function HomePage() {
   const profile = await getPublicProfile();
   const url = siteUrl();
 
-  const jsonLd = {
-    '@context': 'https://schema.org',
+  const business = {
     '@type': 'HVACBusiness',
     '@id': `${url}/#empresa`,
     name: profile.businessName,
+    alternateName: SITE.alternateNames,
     description: SITE.description,
     url,
     logo: `${url}/brand/logo-principal.svg`,
@@ -56,6 +68,7 @@ export default async function HomePage() {
     ...(profile.phone || profile.whatsapp ? { telephone: `+55${profile.phone ?? profile.whatsapp}` } : {}),
     ...(profile.email ? { email: profile.email } : {}),
     ...(profile.instagramUrl ? { sameAs: [profile.instagramUrl] } : {}),
+    ...(profile.hours?.length ? { openingHoursSpecification: openingHours(profile.hours) } : {}),
     hasOfferCatalog: {
       '@type': 'OfferCatalog',
       name: 'Serviços de climatização',
@@ -64,6 +77,23 @@ export default async function HomePage() {
         itemOffered: { '@type': 'Service', name: s.title, description: s.summary },
       })),
     },
+  };
+
+  // O bloco WebSite define o nome do site que o Google mostra nos resultados.
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'WebSite',
+        '@id': `${url}/#site`,
+        url,
+        name: SITE.name,
+        alternateName: SITE.alternateNames,
+        inLanguage: 'pt-BR',
+        publisher: { '@id': `${url}/#empresa` },
+      },
+      business,
+    ],
   };
 
   return (

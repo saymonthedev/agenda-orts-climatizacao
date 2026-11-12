@@ -229,6 +229,17 @@ Domínio próprio: **ortsclimatizacao.com.br**, registrado no registro.br com o 
 
 O `www` redireciona para o domínio sem `www`. Com o domínio ativo, `NEXT_PUBLIC_SITE_URL` e `APP_ORIGIN` usam `https://ortsclimatizacao.com.br`, e os endereços `*.vercel.app` redirecionam para ele.
 
+### Google (busca por "ORTS Climatização")
+
+O site já sai pronto para o Google: título e descrição com o nome e a cidade, endereço canônico, `robots.txt` liberando o site (e bloqueando `/admin` e `/api`), `sitemap.xml`, redirecionamentos permanentes e dados estruturados (`WebSite` com o nome do site e variações como "ORTS Climatização Jaraguá do Sul", e `HVACBusiness` com contato, área atendida, serviços e horário quando visível).
+
+Para o Google encontrar e indexar o domínio:
+
+1. **Google Search Console** → adicionar a propriedade **Domínio** `ortsclimatizacao.com.br` e confirmar com o registro **TXT** que ele mostrar (registro.br → DNS → nova entrada TXT, nome vazio). Alternativa: propriedade por **prefixo do URL** com o método **tag HTML**; o valor de `content` vai na variável `GOOGLE_SITE_VERIFICATION` da Vercel (e um novo deploy).
+2. Em **Sitemaps**, enviar `sitemap.xml`.
+3. Em **Inspeção de URL**, colar `https://ortsclimatizacao.com.br/` e clicar em **Solicitar indexação**.
+4. Para aparecer no mapa e no painel lateral nas buscas locais, criar o **Perfil da Empresa no Google** com o mesmo nome, telefone e site.
+
 ## Identidade visual
 
 O símbolo da logo (casa, floco de neve, hélice e fluxo de ar) foi vetorizado a partir do arquivo original, preservando seus elementos, e recebeu variações em `frontend/public/brand/`. Em toda a marca o nome é só **ORTS Climatização**, com a onda da logo original logo abaixo dele:
