@@ -1,4 +1,4 @@
-import { getPublicProfile } from '@orts/backend';
+import { getPublicProfile, getPublicReviews } from '@orts/backend';
 import type { Metadata } from 'next';
 import { About } from '@/components/site/about';
 import { Contact } from '@/components/site/contact';
@@ -15,6 +15,7 @@ import { Reviews } from '@/components/site/reviews';
 import { Services } from '@/components/site/services';
 import { SITE, images, services } from '@/content/site';
 import { getGoogleReviews } from '@/lib/google-reviews';
+import { buildReviewsSection } from '@/lib/site-reviews';
 import { siteUrl } from '@/lib/site';
 
 // Página estática, regenerada periodicamente e sempre que os dados comerciais mudam no painel.
@@ -47,7 +48,8 @@ function openingHours(hours: { weekday: number; start: string; end: string }[]) 
 }
 
 export default async function HomePage() {
-  const [profile, reviews] = await Promise.all([getPublicProfile(), getGoogleReviews()]);
+  const [profile, google, panelReviews] = await Promise.all([getPublicProfile(), getGoogleReviews(), getPublicReviews()]);
+  const reviews = buildReviewsSection(google, panelReviews);
   const url = siteUrl();
 
   const business = {

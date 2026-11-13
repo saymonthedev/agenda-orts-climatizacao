@@ -1,16 +1,17 @@
 /**
- * Avaliações do Perfil da Empresa no Google, pela Places API.
+ * Nota e avaliações do Perfil da Empresa no Google, pela Places API (New).
  *
  * Configuração (variáveis de ambiente do servidor):
  *   GOOGLE_PLACES_API_KEY  chave com a "Places API (New)" ativada (obrigatória)
- *   GOOGLE_PLACE_ID        ID do lugar (ChIJ…); opcional: sem ele, o perfil é encontrado
- *                          pelo nome (GOOGLE_PLACE_QUERY, padrão "ORTS Climatização Jaraguá do Sul")
+ *   GOOGLE_PLACE_ID        ID do lugar (ChIJ…); opcional: o padrão é o perfil da ORTS (SITE.googlePlaceId).
+ *                          Se o ID deixar de valer, o perfil é procurado pelo nome (GOOGLE_PLACE_QUERY).
  *
- * A busca por texto pode trazer a nota sem os comentários. Quando isso acontece, os comentários
- * são pedidos nos detalhes do lugar (com e sem idioma) e, por último, na versão antiga da API.
- * Sem a chave, ou se o Google falhar, devolve null e a seção não aparece.
- * O resultado fica em cache por 6 horas (poucas consultas por dia, dentro da cota gratuita).
+ * Para o perfil da ORTS o Google entrega a nota e o total, mas não os comentários (testado com a
+ * busca e com os detalhes do lugar, com e sem idioma). Os comentários são cadastrados no painel
+ * (Configurações → Avaliações); se um dia a API passar a mandá-los, eles também aparecem.
+ * Sem a chave, ou se o Google falhar, devolve null. O resultado fica em cache por 6 horas.
  */
+import { SITE } from '@/content/site';
 
 export type GoogleReview = {
   author: string;
@@ -50,7 +51,7 @@ type PlaceResponse = {
 };
 
 /** Resultado de cada consulta, só para o diagnóstico nos logs. */
-type Attempt = { etapa: string; status: number | string; recebidas?: number; erro?: string };
+type Attempt = { etapa: string; status: number; recebidas?: number };
 
 const FIELDS = 'rating,userRatingCount,reviews,googleMapsUri,googleMapsLinks';
 const CACHE_SECONDS = 6 * 60 * 60;
@@ -66,28 +67,22 @@ export async function getGoogleReviews(): Promise<GoogleReviews | null> {
   const attempts: Attempt[] = [];
 
   try {
-    let placeId = process.env.GOOGLE_PLACE_ID?.trim() || '';
-    let place: PlaceResponse | null = null;
-    if (!placeId) {
+    let placeId = process.env.GOOGLE_PLACE_ID?.trim() || SITE.googlePlaceId;
+    let place = await placeDetails(placeId, key, attempts);
+    if (!place) {
+      // o ID pode mudar (perfil movido ou unificado): procura pelo nome
       const found = await searchPlace(key, attempts);
-      if (!found?.id) return warn('Perfil da ORTS não encontrado no Google', attempts);
-      placeId = found.id;
-      place = found;
+      if (found?.id) {
+        placeId = found.id;
+        place = found;
+      }
     }
-
-    // a busca por texto pode vir sem os comentários: pede os detalhes do lugar
-    const missingReviews = () => !place?.reviews?.length && (place?.userRatingCount ?? 1) > 0;
-    if (missingReviews()) place = merge(place, await placeDetails(placeId, key, 'pt-BR', attempts));
-    if (missingReviews()) place = merge(place, await placeDetails(placeId, key, null, attempts));
-    if (missingReviews()) place = merge(place, await legacyDetails(placeId, key, attempts));
-
     if (!place) return warn('Avaliações do Google indisponíveis', attempts);
     const result = normalize(placeId, place);
     console.info(
       JSON.stringify({
         level: 'info',
         message: 'Avaliações do Google',
-        lugar: placeId,
         nota: result?.rating ?? null,
         total: result?.total ?? 0,
         comentarios: result?.reviews.filter((r) => r.text).length ?? 0,
@@ -98,6 +93,16 @@ export async function getGoogleReviews(): Promise<GoogleReviews | null> {
   } catch (err) {
     return warn('Falha ao buscar avaliações do Google', attempts, err instanceof Error ? err.message : 'erro');
   }
+}
+
+async function placeDetails(placeId: string, key: string, attempts: Attempt[]): Promise<PlaceResponse | null> {
+  const res = await fetch(`${API}/places/${encodeURIComponent(placeId)}?languageCode=pt-BR&regionCode=BR`, {
+    headers: { 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': FIELDS },
+    next: { revalidate: CACHE_SECONDS },
+  });
+  const data = res.ok ? ((await res.json()) as PlaceResponse) : null;
+  attempts.push({ etapa: 'detalhes', status: res.status, recebidas: data?.reviews?.length ?? 0 });
+  return data;
 }
 
 /** Encontra o perfil pelo nome. Só aceita um resultado com "ORTS" no nome. */
@@ -127,82 +132,6 @@ async function searchPlace(key: string, attempts: Attempt[]): Promise<PlaceRespo
   return null;
 }
 
-async function placeDetails(placeId: string, key: string, languageCode: string | null, attempts: Attempt[]): Promise<PlaceResponse | null> {
-  const params = new URLSearchParams({ regionCode: 'BR' });
-  if (languageCode) params.set('languageCode', languageCode);
-  const res = await fetch(`${API}/places/${encodeURIComponent(placeId)}?${params}`, {
-    headers: { 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': FIELDS },
-    next: { revalidate: CACHE_SECONDS },
-  });
-  const data = res.ok ? ((await res.json()) as PlaceResponse) : null;
-  attempts.push({ etapa: languageCode ? 'detalhes' : 'detalhes-sem-idioma', status: res.status, recebidas: data?.reviews?.length ?? 0 });
-  return data;
-}
-
-type LegacyResponse = {
-  status?: string;
-  error_message?: string;
-  result?: {
-    rating?: number;
-    user_ratings_total?: number;
-    url?: string;
-    reviews?: {
-      author_name?: string;
-      author_url?: string;
-      profile_photo_url?: string;
-      rating?: number;
-      relative_time_description?: string;
-      text?: string;
-    }[];
-  };
-};
-
-/** Versão antiga da Places API (só funciona se estiver ativada no projeto do Google Cloud). */
-async function legacyDetails(placeId: string, key: string, attempts: Attempt[]): Promise<PlaceResponse | null> {
-  const params = new URLSearchParams({
-    place_id: placeId,
-    fields: 'rating,user_ratings_total,reviews,url',
-    language: 'pt-BR',
-    reviews_no_translations: 'true',
-    key,
-  });
-  const res = await fetch(`https://maps.googleapis.com/maps/api/place/details/json?${params}`, { next: { revalidate: CACHE_SECONDS } });
-  const data = res.ok ? ((await res.json()) as LegacyResponse) : null;
-  const r = data?.result;
-  attempts.push({
-    etapa: 'api-antiga',
-    status: data?.status ?? res.status,
-    recebidas: r?.reviews?.length ?? 0,
-    ...(data?.error_message ? { erro: data.error_message.slice(0, 160) } : {}),
-  });
-  if (!r || data?.status !== 'OK') return null;
-  return {
-    rating: r.rating,
-    userRatingCount: r.user_ratings_total,
-    googleMapsUri: r.url,
-    reviews: r.reviews?.map((v) => ({
-      rating: v.rating,
-      text: { text: v.text },
-      relativePublishTimeDescription: v.relative_time_description,
-      authorAttribution: { displayName: v.author_name, uri: v.author_url, photoUri: v.profile_photo_url },
-    })),
-  };
-}
-
-/** Completa o que veio da busca com o que veio dos detalhes. */
-function merge(base: PlaceResponse | null, extra: PlaceResponse | null): PlaceResponse | null {
-  if (!extra) return base;
-  if (!base) return extra;
-  return {
-    ...base,
-    rating: base.rating ?? extra.rating,
-    userRatingCount: base.userRatingCount ?? extra.userRatingCount,
-    googleMapsUri: base.googleMapsUri ?? extra.googleMapsUri,
-    googleMapsLinks: base.googleMapsLinks ?? extra.googleMapsLinks,
-    reviews: base.reviews?.length ? base.reviews : extra.reviews,
-  };
-}
-
 function warn(message: string, attempts: Attempt[], error?: string): null {
   console.warn(JSON.stringify({ level: 'warn', message, tentativas: attempts, ...(error ? { error } : {}) }));
   return null;
@@ -211,18 +140,15 @@ function warn(message: string, attempts: Attempt[], error?: string): null {
 function normalize(placeId: string, data: PlaceResponse): GoogleReviews | null {
   const total = data.userRatingCount ?? 0;
   if (!total) return null;
-  const reviews = (data.reviews ?? [])
-    .map((r) => ({
-      author: r.authorAttribution?.displayName?.trim() || 'Cliente do Google',
-      authorUrl: r.authorAttribution?.uri ?? null,
-      authorPhoto: r.authorAttribution?.photoUri ?? null,
-      rating: Math.round(r.rating ?? 0),
-      text: (r.text?.text ?? r.originalText?.text ?? '').trim(),
-      relativeTime: r.relativePublishTimeDescription ?? '',
-      url: r.googleMapsUri ?? null,
-    }))
-    // as com comentário primeiro; as só de estrelas também aparecem
-    .sort((a, b) => Number(b.text.length > 0) - Number(a.text.length > 0));
+  const reviews = (data.reviews ?? []).map((r) => ({
+    author: r.authorAttribution?.displayName?.trim() || 'Cliente do Google',
+    authorUrl: r.authorAttribution?.uri ?? null,
+    authorPhoto: r.authorAttribution?.photoUri ?? null,
+    rating: Math.round(r.rating ?? 0),
+    text: (r.text?.text ?? r.originalText?.text ?? '').trim(),
+    relativeTime: r.relativePublishTimeDescription ?? '',
+    url: r.googleMapsUri ?? null,
+  }));
   const id = encodeURIComponent(placeId);
   return {
     rating: typeof data.rating === 'number' ? data.rating : null,

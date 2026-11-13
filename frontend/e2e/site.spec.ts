@@ -24,9 +24,11 @@ test.describe('site institucional', () => {
     await expect(section.getByRole('img', { name: 'Nota 5,0 de 5' })).toBeVisible();
     await expect(section.getByText('4 avaliações')).toBeVisible();
     await expect(section.getByText('Google Maps')).toBeVisible();
-    await expect(section.getByRole('list', { name: 'Avaliações de clientes' }).getByRole('listitem')).toHaveCount(4);
-    // avaliação só de estrelas vira cartão compacto
-    await expect(section.getByText('Avaliou o atendimento com 5 estrelas.')).toBeVisible();
+    // só as avaliações com comentário viram cartão; a só de estrelas conta no total
+    const cards = section.getByRole('list', { name: 'Comentários de clientes' }).getByRole('listitem');
+    await expect(cards.first()).toContainText('atendimento pontual');
+    expect(await cards.count()).toBeGreaterThanOrEqual(3);
+    await expect(cards.first()).toContainText('Google · há 2 semanas');
     for (const name of ['Ver no Google', 'Avaliar a ORTS']) {
       const link = section.getByRole('link', { name });
       await expect(link).toHaveAttribute('target', '_blank');

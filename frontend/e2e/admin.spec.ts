@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ADMIN, futureWeekday, login, noHorizontalOverflow, pickDate } from './helpers';
+import { ADMIN, futureWeekday, login, noHorizontalOverflow, pastWeekday, pickDate } from './helpers';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -133,6 +133,69 @@ test.describe('painel administrativo', () => {
     await expect(page.getByRole('button', { name: new RegExp(`até ${dm(end)} 11:00, ${client}`) })).toBeVisible();
     await expect(page.getByText('Continuação · até 11:00')).toBeVisible();
     await noHorizontalOverflow(page);
+  });
+
+  test('registra serviço já feito sem telefone nem endereço e completa depois', async ({ page }, info) => {
+    const date = pastWeekday(2);
+    const time = info.project.name === 'celular' ? '14:00' : '09:00';
+    const client = `Já feito ${info.project.name}`;
+    await login(page);
+    await page.getByRole('button', { name: 'Novo agendamento' }).first().click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Nome do cliente').fill(client);
+    // a duração não vem mais do serviço: os serviços aparecem só com o nome
+    await dialog.getByLabel('Tipo de serviço').click();
+    await expect(page.getByRole('option', { name: /Higienização/ })).not.toContainText(/\d+h|min/);
+    await page.getByRole('option', { name: /Higienização/ }).click();
+    await pickDate(page, date);
+    // horário que já passou continua selecionável
+    await dialog.getByRole('button', { name: new RegExp(`^${time}, já passou`) }).click();
+    await expect(dialog.getByText('Esse horário já passou')).toBeVisible();
+    await expect(dialog.getByLabel('Status')).toContainText('Concluído');
+    await page.getByRole('button', { name: 'Registrar atendimento' }).click();
+    await expect(page.getByText('Atendimento registrado.')).toBeVisible();
+
+    // detalhes avisam o que falta; completar abre a edição
+    const details = page.getByRole('dialog', { name: client });
+    await expect(details.getByRole('radio', { name: 'Concluído' })).toHaveAttribute('aria-checked', 'true');
+    await details.getByRole('button', { name: /Falta telefone e endereço/ }).click();
+    const edit = page.getByRole('dialog', { name: 'Editar atendimento' });
+    await edit.getByLabel('Telefone / WhatsApp').fill('47988776655');
+    await edit.getByLabel('Endereço').fill('Rua Walter Marquardt, 500');
+    await edit.getByLabel('Bairro').fill('Vila Nova');
+    await expect(edit.getByRole('status').filter({ hasText: 'Alterações salvas' })).toBeVisible();
+    await edit.getByRole('button', { name: 'Concluir' }).click();
+    await expect(page.getByRole('dialog', { name: client })).toContainText('(47) 98877-6655');
+    await expect(page.getByRole('dialog', { name: client })).toContainText('Rua Walter Marquardt, 500');
+    await expect(page.getByRole('dialog', { name: client }).getByRole('button', { name: /Falta/ })).toHaveCount(0);
+  });
+
+  test('avaliações cadastradas no painel aparecem no site', async ({ page }, info) => {
+    const author = `Cliente Avaliação ${info.project.name}`;
+    const text = `Serviço caprichado, recomendo (${info.project.name}).`;
+    await login(page);
+    await page.goto('/admin/configuracoes?aba=avaliacoes');
+    await page.getByRole('button', { name: 'Nova avaliação' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Nova avaliação' });
+    await dialog.getByLabel('Nome de quem avaliou').fill(author);
+    await dialog.getByRole('radio', { name: '4 estrelas' }).click();
+    await dialog.getByLabel('Comentário').fill(text);
+    await dialog.getByRole('button', { name: 'Adicionar avaliação' }).click();
+    await expect(page.getByText('Avaliação adicionada.')).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Avaliações cadastradas' })).toContainText(author);
+    await noHorizontalOverflow(page);
+
+    await page.goto('/');
+    const section = page.getByRole('region', { name: /Quem chamou, recomenda/ });
+    await expect(section.getByRole('list', { name: 'Comentários de clientes' })).toContainText(text);
+
+    // excluir pede confirmação
+    await page.goto('/admin/configuracoes?aba=avaliacoes');
+    await page.getByRole('button', { name: `Excluir a avaliação de ${author}` }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Excluir' }).click();
+    await expect(page.getByText('Avaliação excluída.')).toBeVisible();
+    await page.goto('/');
+    await expect(page.getByRole('region', { name: /Quem chamou, recomenda/ })).not.toContainText(text);
   });
 
   test('configurações alteram as regras da agenda', async ({ page }) => {

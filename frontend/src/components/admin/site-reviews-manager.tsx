@@ -50,12 +50,9 @@ function validateReview(v: ReviewForm): Record<string, string> {
 }
 
 function initials(name: string) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase())
-    .join('');
+  const parts = name.split(/\s+/).filter(Boolean);
+  const picked = parts.length > 1 ? [parts[0], parts[parts.length - 1]] : parts;
+  return picked.map((p) => p?.[0]?.toUpperCase()).join('');
 }
 
 function Stars({ value, className }: { value: number; className?: string }) {

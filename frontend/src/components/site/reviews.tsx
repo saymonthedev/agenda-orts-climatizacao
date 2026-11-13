@@ -1,6 +1,8 @@
 import { ArrowUpRight, Star } from 'lucide-react';
-import type { GoogleReview, GoogleReviews } from '@/lib/google-reviews';
 import { cn } from '@/lib/cn';
+import type { ReviewsSection, SiteReview } from '@/lib/site-reviews';
+
+const MAX_CARDS = 6;
 
 const fmtRating = (n: number) => n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
@@ -15,154 +17,137 @@ function Stars({ value, size = 'size-4', label }: { value: number; size?: string
   );
 }
 
+/** Iniciais do primeiro e do último nome ("Gabriel Leite Medeiros" → "GM"). */
 function initials(name: string) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase())
-    .join('');
+  const parts = name.split(/\s+/).filter(Boolean);
+  const picked = parts.length > 1 ? [parts[0], parts[parts.length - 1]] : parts;
+  return picked.map((p) => p?.[0]?.toUpperCase()).join('');
 }
 
-function ReviewCard({ review, index }: { review: GoogleReview; index: number }) {
+/** Comentários curtos ganham destaque; os longos ficam confortáveis de ler. */
+function quoteSize(text: string) {
+  if (text.length <= 70) return 'text-[1.65rem] leading-[1.2] sm:text-[1.8rem]';
+  if (text.length <= 170) return 'text-[1.4rem] leading-[1.28]';
+  return 'text-[1.2rem] leading-[1.4]';
+}
+
+/** Colunas conforme a quantidade, sem deixar um cartão sozinho numa linha. */
+function gridColumns(count: number) {
+  if (count === 1) return 'max-w-3xl';
+  if (count === 2 || count === 4) return 'sm:grid-cols-2';
+  return 'sm:grid-cols-2 lg:grid-cols-3';
+}
+
+function ReviewCard({ review, index, featured }: { review: SiteReview; index: number; featured?: boolean }) {
   return (
-    <li
-      data-reveal
-      style={{ ['--reveal-delay' as string]: `${index * 80}ms` }}
-      className="flex flex-col rounded-xl border border-line bg-paper p-6 shadow-[0_1px_2px_rgb(15_24_40/0.04)] sm:p-7"
-    >
-      <div className="flex items-center justify-between gap-3">
-        <Stars value={review.rating} />
-        {review.relativeTime && <span className="text-[13px] text-subtle">{review.relativeTime}</span>}
-      </div>
-      {review.text ? (
+    <li data-reveal style={{ ['--reveal-delay' as string]: `${index * 90}ms` }} className={cn('flex', featured && 'lg:col-span-2')}>
+      <figure className="flex w-full flex-col border border-line bg-porcelain p-7 sm:p-8">
+        <span aria-hidden="true" className="serif-accent block h-8 select-none text-[4.5rem] leading-[0.95] text-champagne-500">
+          “
+        </span>
         <blockquote className="mt-4 flex-1">
-          <p className="line-clamp-6 text-[15px] leading-relaxed text-ink-soft">“{review.text}”</p>
+          <p className={cn('serif-accent text-pretty text-ink', quoteSize(review.text))}>{review.text}</p>
         </blockquote>
-      ) : (
-        <p className="mt-4 flex-1 text-[15px] leading-relaxed text-muted">Avaliou o atendimento com {review.rating} {review.rating === 1 ? 'estrela' : 'estrelas'}.</p>
-      )}
-      <div className="mt-6 flex items-center gap-3 border-t border-line pt-5">
-        {review.authorPhoto ? (
-          // foto do autor servida pelo Google (atribuição obrigatória)
-          <img src={review.authorPhoto} alt="" width={40} height={40} loading="lazy" referrerPolicy="no-referrer" className="size-10 shrink-0 rounded-full bg-steel-100 object-cover" />
-        ) : (
-          <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-full bg-steel-100 text-[13px] font-semibold text-steel-700">
-            {initials(review.author)}
-          </span>
-        )}
-        <div className="min-w-0">
-          {review.authorUrl ? (
-            <a href={review.authorUrl} target="_blank" rel="noopener noreferrer" className="block truncate text-[15px] font-semibold text-ink underline-offset-4 hover:underline">
-              {review.author}
-            </a>
+        <figcaption className="mt-8 flex items-center gap-3.5 border-t border-line pt-5">
+          {review.authorPhoto ? (
+            // foto do autor servida pelo Google (atribuição obrigatória)
+            <img src={review.authorPhoto} alt="" width={44} height={44} loading="lazy" referrerPolicy="no-referrer" className="size-11 shrink-0 rounded-full bg-steel-100 object-cover" />
           ) : (
-            <p className="truncate text-[15px] font-semibold text-ink">{review.author}</p>
+            <span aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-full bg-navy-900 text-[13px] font-semibold tracking-wide text-champagne-300">
+              {initials(review.author)}
+            </span>
           )}
-          {review.url ? (
-            <a href={review.url} target="_blank" rel="noopener noreferrer" className="text-[13px] text-muted underline-offset-4 hover:text-ink hover:underline">
-              Ver avaliação no Google
-            </a>
-          ) : (
-            <p className="text-[13px] text-muted">Avaliação no Google</p>
-          )}
-        </div>
-      </div>
+          <div className="min-w-0">
+            {review.authorUrl ? (
+              <a href={review.authorUrl} target="_blank" rel="noopener noreferrer" className="block truncate text-[15px] font-semibold text-ink underline-offset-4 hover:underline">
+                {review.author}
+              </a>
+            ) : (
+              <p className="truncate text-[15px] font-semibold text-ink">{review.author}</p>
+            )}
+            <p className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-muted">
+              <Stars value={review.rating} size="size-3.5" />
+              <span>{review.when ? `Google · ${review.when}` : 'Avaliação no Google'}</span>
+            </p>
+          </div>
+        </figcaption>
+      </figure>
     </li>
   );
 }
 
-/** Nota, total, atribuição e botões (Ver no Google / Avaliar). */
-function Summary({ data, wide }: { data: GoogleReviews; wide: boolean }) {
-  return (
-    <div className={cn('rounded-xl border border-line bg-porcelain p-6 sm:p-7', wide && 'lg:p-9')}>
-      {data.rating !== null && (
-        <div className="flex items-end gap-4">
-          <span className={cn('display leading-none tracking-[-0.04em] text-ink tabular', wide ? 'text-[4rem] lg:text-[5.25rem]' : 'text-[4rem]')}>{fmtRating(data.rating)}</span>
-          <div className="pb-1.5">
-            <Stars value={data.rating} size={wide ? 'size-6' : 'size-5'} label={`Nota ${fmtRating(data.rating)} de 5`} />
-            <p className="mt-1 text-[14px] text-muted">
-              {data.total} {data.total === 1 ? 'avaliação' : 'avaliações'} no Google
-            </p>
-          </div>
-        </div>
-      )}
-      <p className="mt-5 text-[13px] text-muted">
-        Avaliações publicadas no <span className="font-medium text-ink-soft">Google Maps</span>
-      </p>
-      <div className={cn('mt-6 grid gap-2.5 sm:grid-cols-2', !wide && 'lg:grid-cols-1')}>
-        <a
-          href={data.reviewsUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex h-12 w-full items-center justify-center gap-2 whitespace-nowrap rounded-md bg-navy-900 px-5 text-[15px] font-semibold text-porcelain transition-colors hover:bg-navy-800"
-        >
-          Ver no Google <ArrowUpRight className="size-4" aria-hidden="true" />
-        </a>
-        <a
-          href={data.writeReviewUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex h-12 w-full items-center justify-center gap-2 whitespace-nowrap rounded-md border border-line-strong px-5 text-[15px] font-semibold text-ink transition-colors hover:border-ink-soft"
-        >
-          Avaliar a ORTS
-        </a>
-      </div>
-      <p className="mt-4 text-[13px] leading-relaxed text-muted">Já foi atendido pela ORTS? Sua avaliação ajuda outros clientes.</p>
-    </div>
-  );
-}
-
-/** Avaliações do Perfil da Empresa no Google (some quando não há dados). */
-export function Reviews({ data }: { data: GoogleReviews | null }) {
+/** Avaliações do Perfil da Empresa no Google: nota e total do Google, comentários do Google e do painel. */
+export function Reviews({ data }: { data: ReviewsSection | null }) {
   if (!data) return null;
-  const shown = data.reviews.slice(0, 4);
+  const shown = data.reviews.slice(0, MAX_CARDS);
   const hasCards = shown.length > 0;
-  const heading = (
-    <>
-      <p className="eyebrow flex items-center gap-3 text-steel-600">
-        <span aria-hidden="true" className="h-px w-8 bg-steel-500/60" />
-        Avaliações
-      </p>
-      <h2 id="avaliacoes-titulo" className="display mt-6 text-[2.2rem] leading-[1.05] sm:text-5xl">
-        Quem chamou, <span className="serif-accent text-steel-500">recomenda.</span>
-      </h2>
-    </>
-  );
+  const perfect = data.rating !== null && data.rating >= 4.95;
 
   return (
     <section id="avaliacoes" className="scroll-mt-16 border-t border-line bg-paper py-20 sm:py-24 lg:scroll-mt-20 lg:py-28" aria-labelledby="avaliacoes-titulo">
       <div className="container-page">
-        {hasCards ? (
-          <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-16">
-            <div className="lg:col-span-4 lg:self-start lg:sticky lg:top-28" data-reveal>
-              {heading}
-              <div className="mt-10">
-                <Summary data={data} wide={false} />
+        <div className="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:items-end lg:gap-16">
+          <div className="lg:col-span-7" data-reveal>
+            <p className="eyebrow flex items-center gap-3 text-steel-600">
+              <span aria-hidden="true" className="h-px w-8 bg-steel-500/60" />
+              Avaliações
+            </p>
+            <h2 id="avaliacoes-titulo" className="display mt-6 text-[2.2rem] leading-[1.05] sm:text-5xl">
+              Quem chamou, <span className="serif-accent text-steel-500">recomenda.</span>
+            </h2>
+            {data.rating !== null && (
+              <p className="mt-6 max-w-md text-lg leading-relaxed text-muted">
+                {perfect ? 'Nota máxima no Google' : `Nota ${fmtRating(data.rating)} no Google`}, dada por quem já foi atendido.
+              </p>
+            )}
+          </div>
+
+          <div className="lg:col-span-5 lg:justify-self-end" data-reveal style={{ ['--reveal-delay' as string]: '120ms' }}>
+            {data.rating !== null && (
+              <div className="flex items-center gap-5">
+                <span className="serif-accent tabular text-[4.5rem] leading-[0.8] text-ink sm:text-[5.5rem]">{fmtRating(data.rating)}</span>
+                <div>
+                  <Stars value={data.rating} size="size-5" label={`Nota ${fmtRating(data.rating)} de 5`} />
+                  <p className="mt-2 text-[14px] text-muted">
+                    {data.total} {data.total === 1 ? 'avaliação' : 'avaliações'} no{' '}
+                    <span className="font-medium text-ink-soft">Google Maps</span>
+                  </p>
+                </div>
               </div>
-            </div>
-            <ul className={cn('grid grid-cols-1 gap-5 lg:col-span-8', shown.length > 1 && 'sm:grid-cols-2')} aria-label="Avaliações de clientes">
-              {shown.map((r, i) => (
-                <ReviewCard key={`${r.author}-${i}`} review={r} index={i} />
-              ))}
-            </ul>
-          </div>
-        ) : (
-          // ainda sem comentários escritos: título e nota lado a lado
-          <div className="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:items-center lg:gap-16">
-            <div className="lg:col-span-6" data-reveal>
-              {heading}
-              {data.rating !== null && (
-                <p className="mt-6 max-w-md text-lg leading-relaxed text-muted">
-                  {data.rating >= 4.95 ? 'Nota máxima no Google' : `Nota ${fmtRating(data.rating)} no Google`}, dada por quem já foi atendido.
-                </p>
-              )}
-            </div>
-            <div className="lg:col-span-6" data-reveal style={{ ['--reveal-delay' as string]: '120ms' }}>
-              <Summary data={data} wide />
+            )}
+            <div className="mt-7 flex flex-col gap-2.5 min-[420px]:flex-row">
+              <a
+                href={data.writeReviewUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-md bg-navy-900 px-5 text-[15px] font-semibold text-porcelain transition-colors hover:bg-navy-800"
+              >
+                <Star className="size-4 fill-champagne-400 text-champagne-400" aria-hidden="true" /> Avaliar a ORTS
+              </a>
+              <a
+                href={data.reviewsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-md border border-line-strong px-5 text-[15px] font-semibold text-ink transition-colors hover:border-ink-soft"
+              >
+                Ver no Google <ArrowUpRight className="size-4" aria-hidden="true" />
+              </a>
             </div>
           </div>
+        </div>
+
+        {hasCards && (
+          <ul className={cn('mt-14 grid grid-cols-1 gap-5 lg:mt-16', gridColumns(shown.length))} aria-label="Comentários de clientes">
+            {shown.map((r, i) => (
+              // com 5 comentários, o primeiro ganha destaque e as linhas fecham certinho
+              <ReviewCard key={r.id} review={r} index={i} featured={shown.length === 5 && i === 0} />
+            ))}
+          </ul>
         )}
+
+        <p className="mt-8 text-[14px] leading-relaxed text-muted" data-reveal>
+          Já foi atendido pela ORTS? Sua avaliação no Google ajuda outros clientes a escolher.
+        </p>
       </div>
     </section>
   );

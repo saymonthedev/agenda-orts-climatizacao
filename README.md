@@ -158,9 +158,11 @@ Todas são configuráveis em **Configurações** e validadas no backend:
 - **Expediente** por dia da semana e **pausas** (ex.: almoço).
 - **Intervalo entre atendimentos** (deslocamento): um atendimento não pode começar colado no anterior.
 - **Antecedência mínima** para novos horários.
-- **Duração** padrão e por tipo de serviço.
+- **Duração** padrão da agenda, que já vem escolhida no agendamento. Os serviços não têm duração própria: cada atendimento tem a sua.
 - **Encaixe:** horário fora do expediente, na pausa ou em cima da hora só é aceito com confirmação explícita ("Registrar como encaixe"). **Conflitos nunca são liberados.**
 - **Atendimentos de vários dias:** com **Termina em outro dia** ligado, o agendamento recebe data e horário de término (até 14 dias). O início precisa estar no expediente do primeiro dia e o término no do último; as noites e as pausas no meio fazem parte do serviço. O conflito é verificado no período inteiro, e o atendimento aparece em todos os dias que ocupa (agenda dia/semana/mês, painel e lista), marcado como "continua" e "continuação".
+- **Registro de serviços já feitos:** horários que já passaram continuam selecionáveis (inclusive "começou ontem e terminou hoje"). O status já vem como **Concluído** (ou **Em andamento**, se ainda não terminou) e o botão vira **Registrar atendimento**. As regras de expediente continuam valendo; fora delas, use o encaixe.
+- **Dados mínimos:** só nome, serviço, data e horário são obrigatórios. Telefone, endereço, bairro e cidade podem ficar em branco e ser completados depois. Os detalhes do atendimento avisam o que falta (**Completar**), e a mensagem de confirmação pelo WhatsApp pede o endereço ao cliente.
 - Fuso fixo de Jaraguá do Sul (`America/Sao_Paulo`), independente do servidor.
 
 ## Financeiro
@@ -204,8 +206,8 @@ npm test
 npm run test:e2e
 ```
 
-- **Backend (60 testes):** regras de agenda e fuso, autenticação, força bruta, CSRF, CRUD, conflitos (inclusive concorrentes e direto no banco), filtros, busca, configurações, autorização em variações de rota e financeiro (somas, comparação com o mesmo período, MEI, vínculo com atendimentos, CSV).
-- **Ponta a ponta (17 cenários, rodados em desktop e celular):** site, proteção do painel, fluxo completo de atendimento, configurações com salvamento automático, confirmação de exclusões, financeiro (lançar, editar, excluir, MEI e categorias), atendimento de vários dias, avaliações do Google, logout, auditoria **axe** (WCAG 2.1 AA) em todas as telas e varredura de 15 larguras (320–1440px) contra qualquer elemento fora da área útil.
+- **Backend (67 testes):** regras de agenda e fuso, registros no passado, dados opcionais do cliente, avaliações do site, autenticação, força bruta, CSRF, CRUD, conflitos (inclusive concorrentes e direto no banco), filtros, busca, configurações, autorização em variações de rota e financeiro (somas, comparação com o mesmo período, MEI, vínculo com atendimentos, CSV).
+- **Ponta a ponta (19 cenários, rodados em desktop e celular):** site, proteção do painel, fluxo completo de atendimento, configurações com salvamento automático, confirmação de exclusões, financeiro (lançar, editar, excluir, MEI e categorias), atendimento de vários dias, registro de serviço já feito sem telefone nem endereço, avaliações do Google e as cadastradas no painel, logout, auditoria **axe** (WCAG 2.1 AA) em todas as telas e varredura de 15 larguras (320–1440px) contra qualquer elemento fora da área útil.
 
 ## Deploy (Vercel + Neon)
 
@@ -237,15 +239,17 @@ O site já sai pronto para o Google: título e descrição com o nome e a cidade
 Para o Google encontrar e indexar o domínio:
 
 1. **Google Search Console** → adicionar a propriedade **Domínio** `ortsclimatizacao.com.br` e confirmar com o registro **TXT** que ele mostrar (registro.br → DNS → nova entrada TXT, nome vazio). Alternativa: propriedade por **prefixo do URL** com o método **tag HTML**; o valor de `content` vai na variável `GOOGLE_SITE_VERIFICATION` da Vercel (e um novo deploy).
-2. Em **Sitemaps**, enviar `sitemap.xml`.
+2. Em **Sitemaps**, enviar o endereço completo `https://ortsclimatizacao.com.br/sitemap.xml` (numa propriedade de domínio, só `sitemap.xml` é recusado).
 3. Em **Inspeção de URL**, colar `https://ortsclimatizacao.com.br/` e clicar em **Solicitar indexação**.
 4. Para aparecer no mapa e no painel lateral nas buscas locais, criar o **Perfil da Empresa no Google** com o mesmo nome, telefone e site.
 
 ### Avaliações do Google no site
 
-A seção **Avaliações** mostra a nota, o total e até quatro avaliações com texto do Perfil da Empresa no Google ("ORTS Climatização Jaraguá"), com o nome e a foto de cada autor, a atribuição "Google Maps" e os botões **Ver no Google** e **Avaliar a ORTS**. Os dados vêm da **Places API (New)** no servidor, com cache de 6 horas (cerca de 4 consultas por dia, dentro da cota gratuita do Google).
+A seção **Avaliações** mostra a nota e o total do Perfil da Empresa no Google ("ORTS Climatização Jaraguá"), com a atribuição "Google Maps", os botões **Avaliar a ORTS** e **Ver no Google**, e os comentários dos clientes em cartões.
 
-Configuração na Vercel (Production): `GOOGLE_PLACES_API_KEY` (chave restrita à Places API (New)). O perfil é encontrado pelo nome ("ORTS Climatização Jaraguá do Sul", ajustável em `GOOGLE_PLACE_QUERY`), e só é aceito um resultado com "ORTS" no nome; se preferir fixar o lugar, defina `GOOGLE_PLACE_ID` (`ChIJ…`). Sem a chave, ou se o Google falhar, a seção simplesmente não aparece. Nos testes e no desenvolvimento, `GOOGLE_REVIEWS_FIXTURE=1` usa dados de exemplo (nunca em produção).
+A nota e o total vêm da **Places API (New)**, no servidor, com cache de 6 horas. **Os comentários do perfil da ORTS não vêm pela API:** o Google devolve a nota e o total, mas nenhum comentário. Isso foi testado com a busca e com os detalhes do lugar, com e sem idioma, e a versão antiga da API não está disponível em projetos novos. Por isso os comentários são cadastrados no painel, em **Configurações → Avaliações**: nome, nota, comentário e mês, copiados do Google. Editar salva sozinho, excluir pede confirmação, e cada mudança regenera o site. Se um dia a API passar a mandar comentários, eles aparecem junto, sem repetir a mesma pessoa.
+
+Configuração na Vercel (Production): `GOOGLE_PLACES_API_KEY`, uma chave restrita à Places API (New). O perfil já vem fixado em `SITE.googlePlaceId` (`frontend/src/content/site.ts`), e a variável `GOOGLE_PLACE_ID` tem prioridade. Se o ID deixar de valer, o perfil é procurado pelo nome (`GOOGLE_PLACE_QUERY`). Sem a chave, ou se o Google falhar, a seção mostra só os comentários cadastrados. Nos testes e no desenvolvimento, `GOOGLE_REVIEWS_FIXTURE=1` usa dados de exemplo (nunca em produção).
 
 ## Identidade visual
 

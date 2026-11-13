@@ -19,6 +19,15 @@ export function futureWeekday(ahead = 7): string {
   return date.toISOString().slice(0, 10);
 }
 
+/** Dia útil (seg–sex) mais recente a pelo menos `ago` dias atrás, no fuso de Jaraguá do Sul. */
+export function pastWeekday(ago = 2): string {
+  const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' });
+  const [y, m, d] = fmt.format(new Date()).split('-').map(Number) as [number, number, number];
+  const date = new Date(Date.UTC(y, m - 1, d - ago, 12));
+  while (date.getUTCDay() === 0 || date.getUTCDay() === 6) date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().slice(0, 10);
+}
+
 /**
  * Nenhum elemento visível pode passar da tela nem invadir a margem interna do
  * contêiner da página (o overflow-x: clip do body esconderia a rolagem, mas o
@@ -58,13 +67,14 @@ export async function noHorizontalOverflow(page: Page) {
 /** Abre o seletor de data do formulário e escolhe o dia. */
 export async function pickDate(page: Page, date: string) {
   await page.getByRole('dialog').getByLabel('Data', { exact: true }).click();
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
   for (let i = 0; i < 3; i++) {
     const cell = page.locator(`[data-date="${date}"]`);
     if (await cell.count()) {
       await cell.click();
       return;
     }
-    await page.getByRole('button', { name: 'Próximo mês' }).click();
+    await page.getByRole('button', { name: date < today ? 'Mês anterior' : 'Próximo mês' }).click();
   }
   throw new Error(`Data ${date} não encontrada no calendário`);
 }
