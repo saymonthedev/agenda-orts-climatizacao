@@ -10,6 +10,7 @@ import { appointmentsRoutes, availabilityRoutes } from './modules/appointments/a
 import { authRoutes } from './modules/auth/auth.routes';
 import { dashboardRoutes } from './modules/dashboard/dashboard.routes';
 import { financeRoutes } from './modules/finance/finance.routes';
+import { siteReviewsRoutes } from './modules/reviews/reviews.routes';
 import { servicesRoutes } from './modules/services/services.routes';
 import { settingsRoutes } from './modules/settings/settings.routes';
 
@@ -56,6 +57,7 @@ export function createApp(options: CreateAppOptions = {}) {
     '/finance': financeRoutes,
     '/services': servicesRoutes,
     '/settings': settingsRoutes,
+    '/site-reviews': siteReviewsRoutes,
   } as const;
   for (const [prefix, routes] of Object.entries(privateRoutes)) {
     app.use(prefix, requireAuth);

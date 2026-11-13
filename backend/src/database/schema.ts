@@ -100,15 +100,16 @@ export const appointments = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     clientName: text('client_name').notNull(),
-    clientPhone: text('client_phone').notNull(),
+    /** Telefone, endereço, bairro e cidade podem ficar em branco e ser completados depois. */
+    clientPhone: text('client_phone'),
     serviceTypeId: uuid('service_type_id')
       .notNull()
       .references(() => serviceTypes.id, { onDelete: 'restrict' }),
     startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
     endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
-    address: text('address').notNull(),
-    neighborhood: text('neighborhood').notNull(),
-    city: text('city').notNull().default('Jaraguá do Sul'),
+    address: text('address'),
+    neighborhood: text('neighborhood'),
+    city: text('city').default('Jaraguá do Sul'),
     notes: text('notes'),
     status: appointmentStatusEnum('status').notNull().default('pending'),
     outsideBusinessHours: boolean('outside_business_hours').notNull().default(false),
@@ -197,6 +198,25 @@ export const financeEntries = pgTable(
   ],
 );
 
+/**
+ * Avaliações de clientes exibidas no site, copiadas do Google pelo proprietário
+ * (a API do Google não entrega os comentários do perfil da ORTS).
+ */
+export const siteReviews = pgTable(
+  'site_reviews',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    author: text('author').notNull(),
+    rating: smallint('rating').notNull(),
+    text: text('text').notNull(),
+    /** AAAA-MM */
+    month: text('month').notNull(),
+    visible: boolean('visible').notNull().default(true),
+    ...timestamps,
+  },
+  (t) => [check('site_reviews_rating_check', sql`${t.rating} between 1 and 5`), index('site_reviews_month_idx').on(t.month)],
+);
+
 export type UserRow = typeof users.$inferSelect;
 export type SessionRow = typeof sessions.$inferSelect;
 export type ServiceTypeRow = typeof serviceTypes.$inferSelect;
@@ -204,3 +224,4 @@ export type AppointmentRow = typeof appointments.$inferSelect;
 export type SettingsRow = typeof scheduleSettings.$inferSelect;
 export type FinanceCategoryRow = typeof financeCategories.$inferSelect;
 export type FinanceEntryRow = typeof financeEntries.$inferSelect;
+export type SiteReviewRow = typeof siteReviews.$inferSelect;

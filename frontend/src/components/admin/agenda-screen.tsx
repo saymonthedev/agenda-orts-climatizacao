@@ -457,7 +457,9 @@ function TimeGrid({
                         {part === 'last' && `Continuação · até ${a.endTime}`}
                       </span>
                       <span className={cn('block truncate text-[13px] font-semibold leading-tight text-ink', a.status === 'cancelled' && 'line-through')}>{a.clientName}</span>
-                      {h > 56 && <span className="block truncate text-[12px] text-muted">{multi ? a.neighborhood : `${a.serviceType.name} · ${a.neighborhood}`}</span>}
+                      {h > 56 && (multi ? a.neighborhood : true) && (
+                        <span className="block truncate text-[12px] text-muted">{multi ? a.neighborhood : [a.serviceType.name, a.neighborhood].filter(Boolean).join(' · ')}</span>
+                      )}
                       {!multi && h > 76 && (
                         <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-ink-soft">
                           <span className={cn('size-1.5 rounded-full', meta.dot)} aria-hidden="true" /> {meta.label}

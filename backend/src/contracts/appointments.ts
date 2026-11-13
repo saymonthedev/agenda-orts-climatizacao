@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { isoDateSchema, optionalText, phoneSchema, timeSchema } from './common';
+import { isoDateSchema, normalizePhone, optionalPhoneSchema, optionalText, timeSchema } from './common';
 import type { ServiceColor } from './services';
 
 export const APPOINTMENT_STATUSES = ['pending', 'confirmed', 'in_progress', 'completed', 'cancelled'] as const;
@@ -21,13 +21,36 @@ const statusSchema = z.enum(APPOINTMENT_STATUSES, { error: 'Status inválido.' }
 /** Um atendimento pode começar num dia e terminar em outro (até 14 dias). */
 export const MAX_APPOINTMENT_MINUTES = 14 * 24 * 60;
 
+/** Na edição: campo ausente não muda; campo vazio apaga. */
+const clearableText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max, `Use no máximo ${max} caracteres.`)
+    .nullable()
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v ? v : null));
+
+const clearablePhone = z
+  .string()
+  .trim()
+  .max(30)
+  .nullable()
+  .optional()
+  .transform((v) => (v === undefined ? undefined : v ? normalizePhone(v) : null))
+  .refine((d) => d == null || d.length === 10 || d.length === 11, 'Telefone inválido. Use DDD + número.');
+
+/**
+ * Só nome, serviço, data e horário são obrigatórios: telefone, endereço, bairro e cidade
+ * podem ficar em branco quando o cliente ainda não mandou tudo (dá para completar depois).
+ */
 const baseFields = {
   clientName: z
     .string({ error: 'Informe o nome do cliente.' })
     .trim()
     .min(2, 'Informe o nome do cliente.')
     .max(120, 'Use no máximo 120 caracteres.'),
-  clientPhone: phoneSchema,
+  clientPhone: optionalPhoneSchema,
   serviceTypeId: z.uuid('Selecione o tipo de serviço.'),
   date: isoDateSchema,
   startTime: timeSchema,
@@ -36,9 +59,9 @@ const baseFields = {
     .int()
     .min(15, 'Duração mínima de 15 minutos.')
     .max(MAX_APPOINTMENT_MINUTES, 'Duração máxima de 14 dias.'),
-  address: z.string({ error: 'Informe o endereço.' }).trim().min(3, 'Informe o endereço.').max(200),
-  neighborhood: z.string({ error: 'Informe o bairro.' }).trim().min(2, 'Informe o bairro.').max(80),
-  city: z.string().trim().min(2, 'Informe a cidade.').max(80),
+  address: optionalText(200),
+  neighborhood: optionalText(80),
+  city: optionalText(80),
   notes: optionalText(2000),
 };
 
@@ -52,21 +75,15 @@ export const appointmentCreateSchema = z.object({
 
 export const appointmentUpdateSchema = z.object({
   clientName: baseFields.clientName.optional(),
-  clientPhone: baseFields.clientPhone.optional(),
+  clientPhone: clearablePhone,
   serviceTypeId: baseFields.serviceTypeId.optional(),
   date: baseFields.date.optional(),
   startTime: baseFields.startTime.optional(),
   durationMinutes: baseFields.durationMinutes.optional(),
-  address: baseFields.address.optional(),
-  neighborhood: baseFields.neighborhood.optional(),
-  city: baseFields.city.optional(),
-  notes: z
-    .string()
-    .trim()
-    .max(2000, 'Use no máximo 2000 caracteres.')
-    .nullable()
-    .optional()
-    .transform((v) => (v === undefined ? undefined : v ? v : null)),
+  address: clearableText(200),
+  neighborhood: clearableText(80),
+  city: clearableText(80),
+  notes: clearableText(2000),
   status: statusSchema.optional(),
   allowOutsideHours: z.boolean().optional(),
 });
@@ -94,7 +111,8 @@ export type AppointmentListQuery = z.input<typeof appointmentListQuerySchema>;
 export type AppointmentDTO = {
   id: string;
   clientName: string;
-  clientPhone: string;
+  /** Telefone, endereço, bairro e cidade: null quando ainda não foram informados. */
+  clientPhone: string | null;
   serviceType: { id: string; name: string; color: ServiceColor };
   startsAt: string;
   endsAt: string;
@@ -105,9 +123,9 @@ export type AppointmentDTO = {
   endDate: string;
   endTime: string;
   durationMinutes: number;
-  address: string;
-  neighborhood: string;
-  city: string;
+  address: string | null;
+  neighborhood: string | null;
+  city: string | null;
   notes: string | null;
   status: AppointmentStatus;
   outsideBusinessHours: boolean;
@@ -118,7 +136,7 @@ export type AppointmentDTO = {
 };
 
 /** Motivos de violação das regras de agenda (configurações). */
-export type ScheduleViolationCode = 'CLOSED_DAY' | 'OUTSIDE_HOURS' | 'OVERLAPS_BREAK' | 'IN_PAST' | 'TOO_SOON';
+export type ScheduleViolationCode = 'CLOSED_DAY' | 'OUTSIDE_HOURS' | 'OVERLAPS_BREAK' | 'TOO_SOON';
 
 export type ScheduleViolation = { code: ScheduleViolationCode; message: string };
 

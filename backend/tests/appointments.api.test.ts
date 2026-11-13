@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { addDaysToDate } from '../src/domain/time';
+import { addDaysToDate, todayIn } from '../src/domain/time';
 import { futureWeekday, json, setupTestApp } from './helpers';
 
 let t: Awaited<ReturnType<typeof setupTestApp>>;
@@ -234,6 +234,68 @@ describe('agendamentos', () => {
     // remarcar para terminar no mesmo dia volta a ser um atendimento comum
     const moved = await t.request(`/appointments/${appointment.id}`, { method: 'PATCH', cookie, json: { durationMinutes: 120 } });
     expect((await json(moved)).appointment).toMatchObject({ endDate: wed, endTime: '16:00' });
+  });
+
+  it('registra serviço já feito, inclusive o que começou ontem e terminou hoje', async () => {
+    const today = todayIn('America/Sao_Paulo');
+    const yesterday = addDaysToDate(today, -1);
+    const lastWeek = addDaysToDate(today, -7);
+    // no passado, sem encaixe, desde que dentro do expediente
+    const done = await create({ ...base(), date: lastWeek, startTime: '00:00', durationMinutes: 60, clientName: 'Já feito', allowOutsideHours: true, status: 'completed' });
+    expect(done.status).toBe(201);
+    expect((await json(done)).appointment).toMatchObject({ date: lastWeek, status: 'completed' });
+
+    // começou ontem e terminou hoje: o encaixe cobre o caso de ontem/hoje cair em dia sem expediente
+    const res = await create({ ...base(), date: yesterday, startTime: '14:00', durationMinutes: 21 * 60, clientName: 'Ontem e hoje', allowOutsideHours: true, status: 'completed' });
+    expect(res.status).toBe(201);
+    expect((await json(res)).appointment).toMatchObject({ date: yesterday, endDate: today, endTime: '11:00' });
+
+    // a grade do dia mostra os horários que já passaram como selecionáveis (não ocupados)
+    const { availability } = await json(await t.request(`/availability?date=${lastWeek}&durationMinutes=60`, { cookie }));
+    expect(availability.slots.some((s: { state: string }) => s.state === 'past' || s.state === 'after_hours')).toBe(true);
+    expect(availability.slots.every((s: { state: string }) => s.state !== 'available' && s.state !== 'too_soon')).toBe(true);
+  });
+
+  it('aceita passado sem encaixe quando o horário está dentro do expediente', async () => {
+    // segunda-feira anterior, 09:00 (expediente 08h–18h)
+    const pastMonday = addDaysToDate(MONDAY, -14);
+    const res = await create({ ...base(), date: pastMonday, startTime: '09:00', durationMinutes: 60, clientName: 'Segunda passada' });
+    expect(res.status).toBe(201);
+    expect((await json(res)).appointment).toMatchObject({ outsideBusinessHours: false });
+  });
+
+  it('salva só com nome, serviço e horário, e deixa completar telefone e endereço depois', async () => {
+    const res = await create({
+      clientName: 'Cliente sem endereço',
+      clientPhone: '',
+      serviceTypeId: services[0]!.id,
+      date: TUESDAY,
+      startTime: '08:00',
+      durationMinutes: 60,
+      address: '',
+      neighborhood: '   ',
+    });
+    expect(res.status).toBe(201);
+    const { appointment } = await json(res);
+    expect(appointment).toMatchObject({ clientPhone: null, address: null, neighborhood: null, city: 'Jaraguá do Sul' });
+
+    // completar depois
+    const filled = await t.request(`/appointments/${appointment.id}`, {
+      method: 'PATCH',
+      cookie,
+      json: { clientPhone: '(47) 98888-7777', address: 'Rua Walter Marquardt, 500', neighborhood: 'Vila Nova' },
+    });
+    expect((await json(filled)).appointment).toMatchObject({ clientPhone: '47988887777', address: 'Rua Walter Marquardt, 500', neighborhood: 'Vila Nova' });
+
+    // campo ausente não muda; vazio apaga; telefone incompleto é recusado
+    const partial = await t.request(`/appointments/${appointment.id}`, { method: 'PATCH', cookie, json: { neighborhood: '' } });
+    expect((await json(partial)).appointment).toMatchObject({ clientPhone: '47988887777', neighborhood: null, address: 'Rua Walter Marquardt, 500' });
+    const bad = await t.request(`/appointments/${appointment.id}`, { method: 'PATCH', cookie, json: { clientPhone: '4799' } });
+    expect(bad.status).toBe(422);
+
+    // a busca continua funcionando com campos vazios
+    const found = await json(await t.request('/appointments?search=sem%20endere', { cookie }));
+    expect(found.items.map((a: { id: string }) => a.id)).toContain(appointment.id);
   });
 
   it('exclui atendimento', async () => {

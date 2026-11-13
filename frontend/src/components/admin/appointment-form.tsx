@@ -2,7 +2,7 @@
 
 import type { AppointmentDTO, AppointmentStatus, ScheduleViolation } from '@orts/backend/contracts';
 import { appointmentCreateSchema, APPOINTMENT_STATUSES, isMultiDay, MAX_APPOINTMENT_MINUTES, STATUS_LABELS } from '@orts/backend/contracts';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, History } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { AutosaveIndicator } from '@/components/ui/autosave-indicator';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,7 @@ import { toast } from '@/components/ui/toast';
 import { useAvailability, useCreateAppointment, useServices, useSettings, useUpdateAppointment } from '@/hooks/admin/queries';
 import { useAutosave } from '@/hooks/use-autosave';
 import { ApiError } from '@/lib/api';
-import { addDays, formatDurationLabel, todayISO } from '@/lib/format';
+import { addDays, formatDurationLabel, nowMinutes, todayISO } from '@/lib/format';
 import { ServiceDot } from './status';
 import { isWarningState, TimeSlots } from './time-slots';
 
@@ -38,6 +38,19 @@ function minutesBetween(date: string, time: string, endDate: string, endTime: st
   return Math.round((at(endDate, endTime) - at(date, time)) / 60000);
 }
 
+/** "AAAA-MM-DDTHH:MM" de um horário local somado a uma duração. */
+function stampAfter(date: string, time: string, minutes: number): string {
+  const [y, m, d] = date.split('-').map(Number) as [number, number, number];
+  const [hh, mm] = time.split(':').map(Number) as [number, number];
+  return new Date(Date.UTC(y, m - 1, d, hh, mm + minutes)).toISOString().slice(0, 16);
+}
+
+/** Agora, no mesmo formato e no fuso da empresa. */
+function nowStamp(): string {
+  const m = nowMinutes();
+  return `${todayISO()}T${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+}
+
 type Fields = {
   clientName: string;
   clientPhone: string;
@@ -56,14 +69,14 @@ function initialFields(appointment?: AppointmentDTO, prefill?: FormPrefill): Fie
   if (appointment) {
     return {
       clientName: appointment.clientName,
-      clientPhone: maskPhone(appointment.clientPhone),
+      clientPhone: maskPhone(appointment.clientPhone ?? ''),
       serviceTypeId: appointment.serviceType.id,
       date: appointment.date,
       startTime: appointment.startTime,
       durationMinutes: appointment.durationMinutes,
-      address: appointment.address,
-      neighborhood: appointment.neighborhood,
-      city: appointment.city,
+      address: appointment.address ?? '',
+      neighborhood: appointment.neighborhood ?? '',
+      city: appointment.city ?? '',
       notes: appointment.notes ?? '',
       status: appointment.status,
     };
@@ -119,7 +132,8 @@ export function AppointmentForm({
 
   const [f, setF] = useState<Fields>(() => initialFields(appointment, prefill));
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [durationTouched, setDurationTouched] = useState(editing);
+  // no cadastro, o status acompanha o horário até ser escolhido à mão (serviço já feito = concluído)
+  const [statusTouched, setStatusTouched] = useState(editing);
   // termina em outro dia: a duração passa a vir da data e do horário de término
   const [multiDay, setMultiDay] = useState(() => Boolean(appointment && isMultiDay(appointment)));
   const [end, setEnd] = useState(() =>
@@ -159,22 +173,29 @@ export function AppointmentForm({
 
   function toggleMultiDay(on: boolean) {
     setMultiDay(on);
-    setDurationTouched(true);
-    if (on) {
-      setEnd({ date: addDays(f.date, 1), time: f.startTime || '12:00' });
-    } else {
-      const service = services.data?.find((s) => s.id === f.serviceTypeId);
-      set('durationMinutes', service?.durationMinutes ?? settings.data?.defaultDurationMinutes ?? 90);
-    }
+    if (on) setEnd({ date: addDays(f.date, 1), time: f.startTime || '12:00' });
+    else set('durationMinutes', settings.data?.defaultDurationMinutes ?? 90);
   }
 
-  // duração padrão: do serviço escolhido ou da configuração da agenda
+  // duração inicial: a padrão da agenda (o serviço não define a duração)
+  const defaultDuration = settings.data?.defaultDurationMinutes;
   useEffect(() => {
-    if (durationTouched || multiDay) return;
-    const service = services.data?.find((s) => s.id === f.serviceTypeId);
-    const fallback = settings.data?.defaultDurationMinutes ?? 90;
-    setF((prev) => ({ ...prev, durationMinutes: service?.durationMinutes ?? (prev.durationMinutes || fallback) }));
-  }, [f.serviceTypeId, services.data, settings.data, durationTouched, multiDay]);
+    if (multiDay || !defaultDuration) return;
+    setF((prev) => (prev.durationMinutes ? prev : { ...prev, durationMinutes: defaultDuration }));
+  }, [defaultDuration, multiDay]);
+
+  // horário que já passou: registro de um serviço já feito
+  const now = nowStamp();
+  const startsInPast = Boolean(f.startTime) && `${f.date}T${f.startTime}` < now;
+  const suggestedStatus: AppointmentStatus = !startsInPast
+    ? 'pending'
+    : f.durationMinutes && stampAfter(f.date, f.startTime, f.durationMinutes) <= now
+      ? 'completed'
+      : 'in_progress';
+  useEffect(() => {
+    if (statusTouched) return;
+    setF((prev) => (prev.status === suggestedStatus ? prev : { ...prev, status: suggestedStatus }));
+  }, [statusTouched, suggestedStatus]);
 
   // no modo de vários dias a grade mostra só se o horário de início está livre
   const availability = useAvailability(open ? f.date : null, multiDay ? 30 : f.durationMinutes || 60, appointment?.id);
@@ -244,12 +265,7 @@ export function AppointmentForm({
     () =>
       (services.data ?? [])
         .filter((s) => s.active || s.id === appointment?.serviceType.id)
-        .map((s) => ({
-          value: s.id,
-          label: s.name,
-          description: formatDurationLabel(s.durationMinutes),
-          leading: <ServiceDot color={s.color} />,
-        })),
+        .map((s) => ({ value: s.id, label: s.name, leading: <ServiceDot color={s.color} /> })),
     [services.data, appointment?.serviceType.id],
   );
 
@@ -284,7 +300,7 @@ export function AppointmentForm({
     setConflict(null);
     try {
       const saved = await create.mutateAsync(payload);
-      toast.success('Atendimento agendado.', {
+      toast.success(startsInPast ? 'Atendimento registrado.' : 'Atendimento agendado.', {
         description: `${saved.clientName} · ${saved.startTime}`,
       });
       onOpenChange(false);
@@ -312,7 +328,11 @@ export function AppointmentForm({
       onOpenChange={(next) => (editing && !next ? void closeEditing() : onOpenChange(next))}
       size="lg"
       title={editing ? 'Editar atendimento' : 'Novo agendamento'}
-      description={editing ? 'As alterações são salvas automaticamente. Conflitos de horário são verificados na hora.' : 'Preencha os dados do cliente e escolha um horário livre.'}
+      description={
+        editing
+          ? 'As alterações são salvas automaticamente. Conflitos de horário são verificados na hora.'
+          : 'Nome, serviço e horário bastam. Telefone e endereço podem ser completados depois.'
+      }
       onOpenAutoFocus={(e) => {
         e.preventDefault();
         nameRef.current?.focus();
@@ -331,7 +351,7 @@ export function AppointmentForm({
               Cancelar
             </Button>
             <Button type="submit" form="appointment-form" variant="dark" loading={saving}>
-              Agendar atendimento
+              {startsInPast ? 'Registrar atendimento' : 'Agendar atendimento'}
             </Button>
           </>
         )
@@ -341,7 +361,7 @@ export function AppointmentForm({
         <fieldset className="grid gap-4 sm:grid-cols-2">
           <legend className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-subtle">Cliente</legend>
           <TextField ref={nameRef} label="Nome do cliente" value={f.clientName} onChange={(e) => set('clientName', e.target.value)} error={shownErrors.clientName} maxLength={120} />
-          <PhoneField label="Telefone / WhatsApp" value={f.clientPhone} onChange={(v) => set('clientPhone', v)} error={shownErrors.clientPhone} />
+          <PhoneField label="Telefone / WhatsApp" optional value={f.clientPhone} onChange={(v) => set('clientPhone', v)} error={shownErrors.clientPhone} />
         </fieldset>
 
         <fieldset className="grid gap-4 sm:grid-cols-2">
@@ -354,7 +374,16 @@ export function AppointmentForm({
             placeholder={services.isLoading ? 'Carregando…' : 'Escolha o serviço'}
             error={shownErrors.serviceTypeId}
           />
-          <Select label="Status" value={f.status} onChange={(v) => set('status', v as AppointmentStatus)} options={statusOptions} />
+          <Select
+            label="Status"
+            value={f.status}
+            onChange={(v) => {
+              setStatusTouched(true);
+              set('status', v as AppointmentStatus);
+            }}
+            options={statusOptions}
+            hint={!statusTouched && startsInPast ? 'Escolhido pelo horário, que já passou.' : undefined}
+          />
         </fieldset>
 
         <fieldset className="flex flex-col gap-4">
@@ -372,10 +401,7 @@ export function AppointmentForm({
               <Select
                 label="Duração"
                 value={f.durationMinutes ? String(f.durationMinutes) : ''}
-                onChange={(v) => {
-                  setDurationTouched(true);
-                  set('durationMinutes', Number(v));
-                }}
+                onChange={(v) => set('durationMinutes', Number(v))}
                 options={durationOptions}
                 error={shownErrors.durationMinutes}
                 hint={availability.data?.bufferMinutes ? `Intervalo de ${formatDurationLabel(availability.data.bufferMinutes)} entre atendimentos.` : undefined}
@@ -407,6 +433,12 @@ export function AppointmentForm({
             keepTime={keepTime}
             error={shownErrors.startTime}
           />
+          {startsInPast && !editing && (
+            <p className="flex gap-2.5 rounded-md border border-steel-500/25 bg-steel-100/70 px-3.5 py-2.5 text-[13px] leading-snug text-ink-soft">
+              <History className="mt-0.5 size-4 shrink-0 text-steel-600" aria-hidden="true" />
+              <span>Esse horário já passou: o atendimento entra no histórico, como um serviço já feito.</span>
+            </p>
+          )}
           {conflict && (
             <div role="alert" className="flex gap-3 rounded-md border border-danger/25 bg-danger-bg px-4 py-3 text-[14px] leading-snug text-[#7f2f25]">
               <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
@@ -444,6 +476,7 @@ export function AppointmentForm({
           <legend className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-subtle">Onde</legend>
           <TextField
             label="Endereço"
+            optional
             placeholder="Rua, número e complemento"
             value={f.address}
             onChange={(e) => set('address', e.target.value)}
@@ -451,8 +484,8 @@ export function AppointmentForm({
             containerClassName="sm:col-span-2"
             maxLength={200}
           />
-          <TextField label="Bairro" value={f.neighborhood} onChange={(e) => set('neighborhood', e.target.value)} error={shownErrors.neighborhood} maxLength={80} />
-          <TextField label="Cidade" value={f.city} onChange={(e) => set('city', e.target.value)} error={shownErrors.city} maxLength={80} />
+          <TextField label="Bairro" optional value={f.neighborhood} onChange={(e) => set('neighborhood', e.target.value)} error={shownErrors.neighborhood} maxLength={80} />
+          <TextField label="Cidade" optional value={f.city} onChange={(e) => set('city', e.target.value)} error={shownErrors.city} maxLength={80} />
         </fieldset>
 
         <TextArea

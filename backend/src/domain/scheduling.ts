@@ -38,6 +38,7 @@ export function hoursForDate(date: string, rules: Pick<ScheduleRules, 'weeklyHou
 /**
  * Verifica o intervalo contra expediente, pausas e antecedência mínima.
  * Retorna a lista de violações (vazia = dentro das regras).
+ * Horários que já passaram são permitidos: servem para registrar serviços já feitos.
  */
 export function checkScheduleRules(range: TimeRange, rules: ScheduleRules, now: Date = new Date()): ScheduleViolation[] {
   const violations: ScheduleViolation[] = [];
@@ -49,9 +50,8 @@ export function checkScheduleRules(range: TimeRange, rules: ScheduleRules, now: 
   const endMinutes = endsAtMidnight ? 24 * 60 : end.minutes;
   const lastDate = endsAtMidnight ? addDaysToDate(end.date, -1) : end.date;
 
-  if (range.start.getTime() < now.getTime()) {
-    violations.push({ code: 'IN_PAST', message: 'O horário escolhido já passou.' });
-  } else if (range.start.getTime() < addMinutes(now, rules.minAdvanceMinutes).getTime()) {
+  // a antecedência mínima só vale para o futuro
+  if (range.start.getTime() >= now.getTime() && range.start.getTime() < addMinutes(now, rules.minAdvanceMinutes).getTime()) {
     violations.push({
       code: 'TOO_SOON',
       message: `A antecedência mínima configurada é de ${formatDuration(rules.minAdvanceMinutes)}.`,
@@ -152,12 +152,13 @@ export function buildDaySlots(params: {
     const endMinutes = m + durationMinutes;
     const start = zonedInstant(date, startTime, rules.timezone);
     const end = addMinutes(start, durationMinutes);
+    // horários que já passaram continuam selecionáveis (registro de serviço já feito)
     let state: SlotState = 'available';
-    if (start.getTime() < now.getTime()) state = 'past';
-    else if (findConflicts({ start, end }, booked, rules.bufferMinutes, excludeId).length > 0) state = 'busy';
+    if (findConflicts({ start, end }, booked, rules.bufferMinutes, excludeId).length > 0) state = 'busy';
     else if (!day || m < open || endMinutes > close) state = 'after_hours';
     else if (rules.breaks.some((b) => rangesOverlap(m, endMinutes, minutesFromTime(b.start), minutesFromTime(b.end))))
       state = 'break';
+    else if (start.getTime() < now.getTime()) state = 'past';
     else if (start.getTime() < addMinutes(now, rules.minAdvanceMinutes).getTime()) state = 'too_soon';
     slots.push({ time: startTime, endTime: timeFromMinutes(Math.min(endMinutes, 24 * 60 - 1)), state });
   }

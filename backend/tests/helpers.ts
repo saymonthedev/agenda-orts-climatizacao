@@ -1,4 +1,4 @@
-import { createApp } from '../src/app';
+import { createApp, type CreateAppOptions } from '../src/app';
 import { createPgliteDb, migratePglite, type Database } from '../src/database/client';
 import { users } from '../src/database/schema';
 import { addDaysToDate, todayIn, weekdayOfDate } from '../src/domain/time';
@@ -7,11 +7,11 @@ import { hashPassword } from '../src/lib/crypto';
 export const ADMIN = { username: 'dono.orts', password: 'Teste@2026', name: 'Proprietário' };
 export const ORIGIN = 'http://localhost';
 
-export async function setupTestApp() {
+export async function setupTestApp(options: Pick<CreateAppOptions, 'hooks'> = {}) {
   const db: Database = await createPgliteDb();
   await migratePglite(db);
   await db.insert(users).values({ name: ADMIN.name, username: ADMIN.username, passwordHash: await hashPassword(ADMIN.password) });
-  const app = createApp({ db });
+  const app = createApp({ db, ...options });
 
   const request = (path: string, init: RequestInit & { cookie?: string; json?: unknown } = {}) => {
     const headers = new Headers(init.headers);

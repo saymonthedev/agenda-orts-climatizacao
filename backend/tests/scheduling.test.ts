@@ -65,11 +65,15 @@ describe('regras de expediente', () => {
     expect(codes(range(MONDAY, '13:30', 60))).toEqual([]);
   });
 
-  it('respeita antecedência mínima e horários passados', () => {
+  it('respeita a antecedência mínima e aceita horários que já passaram (registro)', () => {
     const now = zonedInstant(MONDAY, '09:30', TZ);
-    expect(codes(range(MONDAY, '08:00', 60), now)).toContain('IN_PAST');
+    expect(codes(range(MONDAY, '08:00', 60), now)).toEqual([]); // já passou: registro de serviço feito
     expect(codes(range(MONDAY, '10:00', 60), now)).toContain('TOO_SOON');
     expect(codes(range(MONDAY, '10:30', 60), now)).toEqual([]);
+    // começou ontem (segunda 14h) e terminou hoje (terça 11h)
+    expect(codes(range(MONDAY, '14:00', 21 * 60), zonedInstant('2030-01-08', '15:00', TZ))).toEqual([]);
+    // fora do expediente continua pedindo encaixe, mesmo no passado
+    expect(codes(range(MONDAY, '19:00', 60), zonedInstant('2030-01-08', '15:00', TZ))).toContain('OUTSIDE_HOURS');
   });
 
   it('aceita atendimento que termina em outro dia dentro do expediente', () => {
@@ -129,5 +133,21 @@ describe('grade de horários', () => {
     expect(state('10:30')).toBe('available');
     expect(state('11:30')).toBe('break');
     expect(state('17:30')).toBe('after_hours');
+  });
+
+  it('mantém selecionáveis os horários que já passaram, sem esconder os ocupados', () => {
+    const r = range(MONDAY, '09:00', 60);
+    const { slots } = buildDaySlots({
+      date: MONDAY,
+      durationMinutes: 60,
+      rules,
+      booked: [{ id: 'a', status: 'confirmed', startsAt: r.start, endsAt: r.end }],
+      now: zonedInstant(MONDAY, '16:00', TZ),
+    });
+    const state = (t: string) => slots.find((s) => s.time === t)?.state;
+    expect(state('10:30')).toBe('past');
+    expect(state('09:30')).toBe('busy'); // ocupado continua ocupado, mesmo no passado
+    expect(state('11:30')).toBe('break');
+    expect(state('07:30')).toBe('after_hours');
   });
 });

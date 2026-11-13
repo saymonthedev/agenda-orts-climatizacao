@@ -15,7 +15,7 @@ import { ApiError } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { capitalize, formatDayMonth, formatLongDate, formatShortDate, formatWeekdayShort, nowMinutes, todayISO } from '@/lib/format';
 import { mapsDirectionsLink, whatsappLink } from '@/lib/links';
-import { buildConfirmationMessage, mapsQueryFor } from '@/lib/messages';
+import { buildConfirmationMessage, mapsQueryFor, placeOf } from '@/lib/messages';
 import { formatBRL, formatSignedBRL, monthLabel, monthOf } from '@/lib/money';
 import { useAdminUI } from './admin-ui';
 import { PageHeader } from './shell';
@@ -188,20 +188,24 @@ function NextAppointment({ appointment: a }: { appointment: AppointmentDTO | nul
           </p>
           <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[14px] text-porcelain/70">
             <ServiceDot color={a.serviceType.color} className="ring-1 ring-white/30" /> {a.serviceType.name}
-            <span aria-hidden="true">·</span> {a.address}, {a.neighborhood}
+            <span aria-hidden="true">·</span> {placeOf(a, ', ') || <span className="text-porcelain/50">endereço a confirmar</span>}
           </p>
         </button>
         <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline-light" size="md">
-            <a href={whatsappLink(a.clientPhone, message)} target="_blank" rel="noopener noreferrer">
-              <WhatsAppIcon className="size-4" /> WhatsApp
-            </a>
-          </Button>
-          <Button asChild variant="outline-light" size="md">
-            <a href={mapsDirectionsLink(mapsQueryFor(a))} target="_blank" rel="noopener noreferrer">
-              <Navigation className="size-4" aria-hidden="true" /> Rota
-            </a>
-          </Button>
+          {a.clientPhone && (
+            <Button asChild variant="outline-light" size="md">
+              <a href={whatsappLink(a.clientPhone, message)} target="_blank" rel="noopener noreferrer">
+                <WhatsAppIcon className="size-4" /> WhatsApp
+              </a>
+            </Button>
+          )}
+          {placeOf(a) && (
+            <Button asChild variant="outline-light" size="md">
+              <a href={mapsDirectionsLink(mapsQueryFor(a))} target="_blank" rel="noopener noreferrer">
+                <Navigation className="size-4" aria-hidden="true" /> Rota
+              </a>
+            </Button>
+          )}
           <Button variant="primary" size="md" onClick={advance} loading={changeStatus.isPending}>
             {nextStatus === 'completed' ? <CheckCheck className="size-4" aria-hidden="true" /> : <Play className="size-4" aria-hidden="true" />}
             {nextStatus === 'completed' ? 'Concluir' : 'Iniciar'}
@@ -237,7 +241,7 @@ function AppointmentRow({ a, onOpen, trailing }: { a: AppointmentDTO; onOpen: ()
         <span className="min-w-0 flex-1">
           <span className={cn('block truncate text-[15px] font-semibold text-ink', a.status === 'cancelled' && 'text-subtle line-through')}>{a.clientName}</span>
           <span className="block truncate text-[13px] text-muted">
-            {a.serviceType.name} · {a.neighborhood}
+            {[a.serviceType.name, a.neighborhood].filter(Boolean).join(' · ')}
             {isMultiDay(a) && ` · até ${formatDayMonth(a.endDate)} ${a.endTime}`}
           </span>
         </span>
@@ -314,17 +318,19 @@ function PendingList({ items, total }: { items: AppointmentDTO[]; total: number 
               onOpen={() => openDetails(a.id)}
               trailing={
                 <div className="flex shrink-0 items-center gap-1">
-                  <Tooltip content="Enviar confirmação pelo WhatsApp">
-                    <a
-                      href={whatsappLink(a.clientPhone, settings.data ? buildConfirmationMessage(settings.data.confirmationTemplate, a, settings.data.businessName) : undefined)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex size-10 items-center justify-center rounded-md text-status-completed hover:bg-status-completed-bg"
-                      aria-label={`Enviar confirmação para ${a.clientName} pelo WhatsApp`}
-                    >
-                      <WhatsAppIcon className="size-5" />
-                    </a>
-                  </Tooltip>
+                  {a.clientPhone && (
+                    <Tooltip content="Enviar confirmação pelo WhatsApp">
+                      <a
+                        href={whatsappLink(a.clientPhone, settings.data ? buildConfirmationMessage(settings.data.confirmationTemplate, a, settings.data.businessName) : undefined)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex size-10 items-center justify-center rounded-md text-status-completed hover:bg-status-completed-bg"
+                        aria-label={`Enviar confirmação para ${a.clientName} pelo WhatsApp`}
+                      >
+                        <WhatsAppIcon className="size-5" />
+                      </a>
+                    </Tooltip>
+                  )}
                   <Button size="sm" variant="secondary" onClick={() => confirmAppointment(a)} disabled={changeStatus.isPending}>
                     Confirmar
                   </Button>

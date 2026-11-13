@@ -2,7 +2,7 @@
 
 import type { AppointmentDTO, AppointmentStatus, FinanceEntryDTO } from '@orts/backend/contracts';
 import { APPOINTMENT_STATUSES, datesOf, FINANCE_STATUS_LABELS, isMultiDay, PAYMENT_METHOD_LABELS } from '@orts/backend/contracts';
-import { AlertTriangle, Clock, MapPin, Navigation, NotebookPen, Pencil, Phone, Plus, Trash2, Wallet, Wrench } from 'lucide-react';
+import { AlertTriangle, CircleAlert, Clock, MapPin, Navigation, NotebookPen, Pencil, Phone, Plus, Trash2, Wallet, Wrench } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { WhatsAppIcon } from '@/components/site/icons';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import { ApiError } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { capitalize, formatDurationLabel, formatLongDate, formatNumericDate, formatPhone, formatShortDate, todayISO } from '@/lib/format';
 import { mapsDirectionsLink, telLink, whatsappLink } from '@/lib/links';
-import { buildConfirmationMessage, mapsQueryFor } from '@/lib/messages';
+import { buildConfirmationMessage, mapsQueryFor, placeOf } from '@/lib/messages';
 import { formatBRL } from '@/lib/money';
 import { useAdminUI } from './admin-ui';
 import { ServiceDot, STATUS_META, StatusBadge } from './status';
@@ -71,6 +71,8 @@ export function AppointmentDetails({ id, onClose, onEdit }: { id: string | null;
   }
 
   const confirmation = a && settings.data ? buildConfirmationMessage(settings.data.confirmationTemplate, a, settings.data.businessName) : undefined;
+  // dados que o cliente ainda não mandou (dá para completar em Editar)
+  const missing = a ? [!a.clientPhone && 'telefone', !placeOf(a) && 'endereço'].filter((m): m is string => Boolean(m)) : [];
 
   return (
     <Dialog
@@ -78,7 +80,7 @@ export function AppointmentDetails({ id, onClose, onEdit }: { id: string | null;
       onOpenChange={(open) => !open && onClose()}
       variant="drawer"
       title={a ? a.clientName : 'Atendimento'}
-      description={a ? `${a.serviceType.name} · ${a.neighborhood}` : undefined}
+      description={a ? [a.serviceType.name, a.neighborhood].filter(Boolean).join(' · ') : undefined}
       footer={
         a && (
           <>
@@ -124,26 +126,47 @@ export function AppointmentDetails({ id, onClose, onEdit }: { id: string | null;
             </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            <Button asChild variant="secondary" className="h-auto flex-col gap-1.5 py-3 text-[12px]">
-              <a href={whatsappLink(a.clientPhone, confirmation)} target="_blank" rel="noopener noreferrer">
-                <WhatsAppIcon className="size-5 text-status-completed" />
-                Confirmar
-              </a>
-            </Button>
-            <Button asChild variant="secondary" className="h-auto flex-col gap-1.5 py-3 text-[12px]">
-              <a href={telLink(a.clientPhone)}>
-                <Phone className="size-5 text-steel-600" aria-hidden="true" />
-                Ligar
-              </a>
-            </Button>
-            <Button asChild variant="secondary" className="h-auto flex-col gap-1.5 py-3 text-[12px]">
-              <a href={mapsDirectionsLink(mapsQueryFor(a))} target="_blank" rel="noopener noreferrer">
-                <Navigation className="size-5 text-steel-600" aria-hidden="true" />
-                Rota
-              </a>
-            </Button>
-          </div>
+          {(a.clientPhone || placeOf(a)) && (
+            <div className={cn('grid gap-2', a.clientPhone && placeOf(a) ? 'grid-cols-3' : a.clientPhone ? 'grid-cols-2' : 'grid-cols-1')}>
+              {a.clientPhone && (
+                <>
+                  <Button asChild variant="secondary" className="h-auto flex-col gap-1.5 py-3 text-[12px]">
+                    <a href={whatsappLink(a.clientPhone, confirmation)} target="_blank" rel="noopener noreferrer">
+                      <WhatsAppIcon className="size-5 text-status-completed" />
+                      Confirmar
+                    </a>
+                  </Button>
+                  <Button asChild variant="secondary" className="h-auto flex-col gap-1.5 py-3 text-[12px]">
+                    <a href={telLink(a.clientPhone)}>
+                      <Phone className="size-5 text-steel-600" aria-hidden="true" />
+                      Ligar
+                    </a>
+                  </Button>
+                </>
+              )}
+              {placeOf(a) && (
+                <Button asChild variant="secondary" className="h-auto flex-col gap-1.5 py-3 text-[12px]">
+                  <a href={mapsDirectionsLink(mapsQueryFor(a))} target="_blank" rel="noopener noreferrer">
+                    <Navigation className="size-5 text-steel-600" aria-hidden="true" />
+                    Rota
+                  </a>
+                </Button>
+              )}
+            </div>
+          )}
+          {missing.length > 0 && (
+            <button
+              type="button"
+              onClick={() => onEdit(a)}
+              className="flex items-center gap-3 rounded-md border border-dashed border-status-pending/50 bg-status-pending-bg/60 px-4 py-3 text-left text-[14px] leading-snug text-status-pending-fg transition-colors hover:border-status-pending"
+            >
+              <CircleAlert className="size-4 shrink-0" aria-hidden="true" />
+              <span className="min-w-0 flex-1">
+                Falta {missing.join(' e ')} do cliente.
+              </span>
+              <span className="shrink-0 font-semibold underline underline-offset-4">Completar</span>
+            </button>
+          )}
 
           <div role="radiogroup" aria-label="Status do atendimento">
             <p className="mb-2.5 text-[12px] font-semibold uppercase tracking-[0.1em] text-subtle">Alterar status</p>
@@ -176,16 +199,22 @@ export function AppointmentDetails({ id, onClose, onEdit }: { id: string | null;
           <PaymentSection appointment={a} />
           <div className="divide-y divide-line border-y border-line">
             <Row icon={<Phone />} label="Telefone">
-              <a href={telLink(a.clientPhone)} className="tabular font-medium underline-offset-4 hover:underline">
-                {formatPhone(a.clientPhone)}
-              </a>
+              {a.clientPhone ? (
+                <a href={telLink(a.clientPhone)} className="tabular font-medium underline-offset-4 hover:underline">
+                  {formatPhone(a.clientPhone)}
+                </a>
+              ) : (
+                <span className="text-muted">Não informado</span>
+              )}
             </Row>
             <Row icon={<MapPin />} label="Endereço">
-              {a.address}
-              <br />
-              <span className="text-muted">
-                {a.neighborhood} · {a.city}
-              </span>
+              {a.address ?? <span className="text-muted">Não informado</span>}
+              {(a.neighborhood || a.city) && (
+                <>
+                  <br />
+                  <span className="text-muted">{[a.neighborhood, a.city].filter(Boolean).join(' · ')}</span>
+                </>
+              )}
             </Row>
             <Row icon={<Wrench />} label="Serviço">
               <span className="inline-flex items-center gap-2">

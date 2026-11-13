@@ -73,8 +73,8 @@ async function requireActiveService(db: Database, serviceTypeId: string, allowIn
 function enforceScheduleRules(range: TimeRange, rules: ScheduleRules, opts: { allowOutside: boolean; status: AppointmentStatus; now: Date }) {
   let violations = checkScheduleRules(range, rules, opts.now);
   if (HISTORICAL.includes(opts.status)) {
-    // registros históricos (concluídos/cancelados) podem estar no passado
-    violations = violations.filter((v) => v.code !== 'IN_PAST' && v.code !== 'TOO_SOON');
+    // concluídos/cancelados não dependem da antecedência mínima
+    violations = violations.filter((v) => v.code !== 'TOO_SOON');
   }
   if (violations.length && !opts.allowOutside) {
     throw new BusinessRuleError('OUTSIDE_SCHEDULE', violations[0]!.message, { violations });

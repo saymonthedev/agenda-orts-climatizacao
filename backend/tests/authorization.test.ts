@@ -14,6 +14,7 @@ describe("autorização", () => {
       "/dashboard/",
       "/settings",
       "/services/",
+      "/site-reviews",
       "/availability?date=2030-01-07",
       "/appointments/%2e%2e/dashboard",
       "/./dashboard",
@@ -28,6 +29,8 @@ describe("autorização", () => {
       ["POST", "/appointments"],
       ["PUT", "/settings"],
       ["PATCH", "/services/x"],
+      ["POST", "/site-reviews"],
+      ["DELETE", "/site-reviews/x"],
       ["DELETE", "/appointments/x"],
       ["POST", "/auth/password"],
     ] as const) {

@@ -11,7 +11,7 @@ const STATE_LABEL: Record<AvailabilitySlot['state'], string> = {
   available: 'livre',
   busy: 'ocupado',
   break: 'na pausa configurada',
-  past: 'horário já passou',
+  past: 'já passou (dá para registrar um serviço feito)',
   too_soon: 'abaixo da antecedência mínima',
   after_hours: 'fora do expediente',
 };
@@ -23,7 +23,10 @@ const groupOf = (time: string) => {
   return m < 12 * 60 ? 'Manhã' : m < 18 * 60 ? 'Tarde' : 'Noite';
 };
 
-/** Grade de horários com a situação de cada um (livre, ocupado, pausa, fora do expediente). */
+/**
+ * Grade de horários com a situação de cada um (livre, ocupado, pausa, fora do expediente).
+ * Os que já passaram continuam selecionáveis, para registrar serviços já feitos.
+ */
 export function TimeSlots({
   availability,
   loading,
@@ -56,6 +59,7 @@ export function TimeSlots({
 
   const slots = availability.slots;
   const onGrid = slots.some((s) => s.time === value);
+  const hasPast = slots.some((s) => s.state === 'past');
   const groups = ['Manhã', 'Tarde', 'Noite']
     .map((g) => ({ name: g, slots: slots.filter((s) => groupOf(s.time) === g) }))
     .filter((g) => g.slots.length);
@@ -81,8 +85,9 @@ export function TimeSlots({
             {group.slots.map((slot) => {
               const selected = value === slot.time;
               const isKept = keepTime === slot.time;
-              const disabled = !isKept && (slot.state === 'busy' || slot.state === 'past');
+              const disabled = !isKept && slot.state === 'busy';
               const warn = isWarningState(slot.state);
+              const past = slot.state === 'past';
               return (
                 <button
                   key={slot.time}
@@ -103,7 +108,9 @@ export function TimeSlots({
                         ? 'cursor-not-allowed border-transparent bg-ink/[0.04] text-subtle/70 line-through decoration-1'
                         : warn
                           ? 'border-dashed border-status-pending/50 bg-paper text-ink-soft hover:border-status-pending'
-                          : 'border-line-strong bg-paper text-ink hover:border-navy-700',
+                          : past
+                            ? 'border-line bg-ink/[0.025] text-muted hover:border-navy-700 hover:text-ink'
+                            : 'border-line-strong bg-paper text-ink hover:border-navy-700',
                   )}
                 >
                   {slot.time}
@@ -122,6 +129,11 @@ export function TimeSlots({
         <span className="inline-flex items-center gap-1.5">
           <span aria-hidden="true" className="size-3 rounded-sm bg-ink/10" /> Ocupado
         </span>
+        {hasPast && (
+          <span className="inline-flex items-center gap-1.5">
+            <span aria-hidden="true" className="size-3 rounded-sm border border-line bg-ink/[0.05]" /> Já passou
+          </span>
+        )}
         <span className="inline-flex items-center gap-1.5">
           <span aria-hidden="true" className="size-3 rounded-sm border border-dashed border-status-pending" /> Fora do expediente, pausa ou em cima da hora
         </span>

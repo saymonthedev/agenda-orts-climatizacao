@@ -5,6 +5,7 @@ import { isMultiDay } from '@orts/backend/contracts';
 import { MapPin } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { formatDayMonth, formatDurationLabel } from '@/lib/format';
+import { placeOf } from '@/lib/messages';
 import { SERVICE_COLOR, StatusBadge } from './status';
 
 /** Cartão de atendimento para listas (celular e resultados de busca). */
@@ -49,9 +50,7 @@ export function AppointmentCard({ a, onOpen, showDate, day }: { a: AppointmentDT
         </span>
         <span className="mt-1 flex items-center gap-1 truncate text-[13px] text-ink-soft">
           <MapPin className="size-3.5 shrink-0 text-subtle" aria-hidden="true" />
-          <span className="truncate">
-            {a.address} · {a.neighborhood}
-          </span>
+          <span className={cn('truncate', !placeOf(a) && 'text-subtle')}>{placeOf(a) || 'Endereço a confirmar'}</span>
         </span>
       </span>
     </button>
