@@ -101,8 +101,10 @@ test.describe('painel administrativo', () => {
   test('atendimento que termina em outro dia aparece nos dois dias', async ({ page }, info) => {
     // segunda a quinta, para o término cair num dia útil
     const nextDay = (d: string) => new Date(Date.parse(`${d}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
-    let start = futureWeekday(info.project.name === 'celular' ? 24 : 21);
+    let start = futureWeekday(21);
     while (![1, 2, 3, 4].includes(new Date(`${start}T12:00:00Z`).getUTCDay())) start = nextDay(start);
+    // uma semana depois no celular: as duas execuções nunca caem no mesmo dia
+    if (info.project.name === 'celular') for (let i = 0; i < 7; i++) start = nextDay(start);
     const end = nextDay(start);
     const dm = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
     const client = `Obra ${info.project.name}`;
