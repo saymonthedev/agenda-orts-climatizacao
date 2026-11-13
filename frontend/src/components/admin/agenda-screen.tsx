@@ -1,7 +1,7 @@
 'use client';
 
 import type { AppointmentDTO, AppointmentStatus, SettingsDTO } from '@orts/backend/contracts';
-import { APPOINTMENT_STATUSES } from '@orts/backend/contracts';
+import { APPOINTMENT_STATUSES, coversDate, datesOf, isMultiDay, lastDateOf } from '@orts/backend/contracts';
 import { CalendarDays, Check, ChevronLeft, ChevronRight, ListFilter, Plus } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Popover } from 'radix-ui';
@@ -14,6 +14,7 @@ import { useAppointmentsRange, useSettings } from '@/hooks/admin/queries';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { cn } from '@/lib/cn';
 import {
+  formatDayMonth,
   addDays,
   addMonths,
   capitalize,
@@ -95,7 +96,7 @@ export function AgendaScreen() {
 
   const counts = useMemo(() => {
     const map: Record<string, number> = {};
-    for (const a of query.data ?? []) if (a.status !== 'cancelled') map[a.date] = (map[a.date] ?? 0) + 1;
+    for (const a of query.data ?? []) if (a.status !== 'cancelled') for (const d of datesOf(a)) map[d] = (map[d] ?? 0) + 1;
     return map;
   }, [query.data]);
 
@@ -247,11 +248,30 @@ function StatusFilter({ hidden, onChange }: { hidden: AppointmentStatus[]; onCha
 
 const HOUR_PX = 64;
 
-type Laid = { a: AppointmentDTO; lane: number; lanes: number };
+/** Parte do atendimento visível num dia (vários dias: começo, meio e fim). */
+type Segment = { a: AppointmentDTO; start: number; end: number; part: 'single' | 'first' | 'middle' | 'last' };
+type Laid = Segment & { lane: number; lanes: number };
+
+/** Trechos do dia: o que começou antes vem do topo da grade; o que continua vai até o fim. */
+function segmentsOf(items: AppointmentDTO[], day: string, gridStart: number, gridEnd: number): Segment[] {
+  return items
+    .filter((a) => coversDate(a, day))
+    .map((a) => {
+      if (!isMultiDay(a)) return { a, start: minutesOf(a.startTime), end: minutesOf(a.endTime) || 24 * 60, part: 'single' as const };
+      const first = a.date === day;
+      const last = lastDateOf(a) === day;
+      return {
+        a,
+        start: first ? minutesOf(a.startTime) : gridStart,
+        end: last ? Math.min(minutesOf(a.endTime) || 24 * 60, gridEnd) : gridEnd,
+        part: first ? ('first' as const) : last ? ('last' as const) : ('middle' as const),
+      };
+    });
+}
 
 /** Distribui atendimentos sobrepostos (ex.: cancelado + ativo) em colunas. */
-function layoutDay(items: AppointmentDTO[]): Laid[] {
-  const sorted = [...items].sort((x, y) => minutesOf(x.startTime) - minutesOf(y.startTime));
+function layoutDay(items: Segment[]): Laid[] {
+  const sorted = [...items].sort((x, y) => x.start - y.start);
   const result: Laid[] = [];
   let cluster: Laid[] = [];
   let clusterEnd = -1;
@@ -261,14 +281,14 @@ function layoutDay(items: AppointmentDTO[]): Laid[] {
     result.push(...cluster);
     cluster = [];
   };
-  for (const a of sorted) {
-    const s = minutesOf(a.startTime);
-    const e = minutesOf(a.endTime) || 24 * 60;
+  for (const seg of sorted) {
+    const s = seg.start;
+    const e = seg.end;
     if (s >= clusterEnd && cluster.length) flush();
-    const used = new Set(cluster.filter((c) => (minutesOf(c.a.endTime) || 1440) > s).map((c) => c.lane));
+    const used = new Set(cluster.filter((c) => c.end > s).map((c) => c.lane));
     let lane = 0;
     while (used.has(lane)) lane++;
-    cluster.push({ a, lane, lanes: 1 });
+    cluster.push({ ...seg, lane, lanes: 1 });
     clusterEnd = Math.max(clusterEnd, e);
   }
   if (cluster.length) flush();
@@ -301,8 +321,10 @@ function TimeGrid({
 
   const hoursFor = (d: string) => settings?.weeklyHours.find((h) => h.weekday === weekdayOf(d));
   const enabled = days.map(hoursFor).filter((h) => h?.enabled);
-  const startMin = Math.min(...enabled.map((h) => minutesOf(h!.start)), ...items.map((a) => minutesOf(a.startTime)), 8 * 60);
-  const endMin = Math.max(...enabled.map((h) => minutesOf(h!.end)), ...items.map((a) => minutesOf(a.endTime) || 1440), 18 * 60);
+  const startsHere = items.filter((a) => days.includes(a.date));
+  const endsHere = items.filter((a) => days.includes(lastDateOf(a)));
+  const startMin = Math.min(...enabled.map((h) => minutesOf(h!.start)), ...startsHere.map((a) => minutesOf(a.startTime)), 8 * 60);
+  const endMin = Math.max(...enabled.map((h) => minutesOf(h!.end)), ...endsHere.map((a) => minutesOf(a.endTime) || 1440), 18 * 60);
   const gridStart = Math.max(0, Math.floor(startMin / 60) * 60 - 60);
   const gridEnd = Math.min(24 * 60, Math.ceil(endMin / 60) * 60 + 60);
   const ppm = HOUR_PX / 60;
@@ -348,7 +370,7 @@ function TimeGrid({
           {days.map((d) => {
             const dh = hoursFor(d);
             const open = dh?.enabled ? [minutesOf(dh.start), minutesOf(dh.end)] : null;
-            const dayItems = layoutDay(items.filter((a) => a.date === d));
+            const dayItems = layoutDay(segmentsOf(items, d, gridStart, gridEnd));
             return (
               <div
                 key={d}
@@ -398,27 +420,41 @@ function TimeGrid({
                     <span className="h-[2px] flex-1 bg-steel-500" />
                   </div>
                 )}
-                {dayItems.map(({ a, lane, lanes }) => {
-                  const top = (minutesOf(a.startTime) - gridStart) * ppm;
-                  const h = Math.max(30, a.durationMinutes * ppm - 2);
+                {dayItems.map(({ a, start, end, part, lane, lanes }) => {
+                  const top = (start - gridStart) * ppm;
+                  const h = Math.max(30, (end - start) * ppm - 2);
                   const meta = STATUS_META[a.status];
+                  const range = part === 'single' ? `${a.startTime} às ${a.endTime}` : `de ${formatDayMonth(a.date)} ${a.startTime} até ${formatDayMonth(a.endDate)} ${a.endTime}`;
                   return (
                     <button
-                      key={a.id}
+                      key={`${a.id}-${d}`}
                       type="button"
                       onClick={() => onOpen(a.id)}
                       className={cn(
-                        'absolute z-10 overflow-hidden rounded-md border-l-[3px] px-2 py-1 text-left shadow-[0_1px_2px_rgb(15_24_40/0.08)] transition-shadow hover:z-30 hover:shadow-lift focus-visible:z-30',
+                        // texto sempre no topo do bloco (botões centralizam o conteúdo por padrão)
+                        'absolute z-10 flex flex-col justify-start overflow-hidden border-l-[3px] px-2 py-1 text-left shadow-[0_1px_2px_rgb(15_24_40/0.08)] transition-shadow hover:z-30 hover:shadow-lift focus-visible:z-30',
+                        part === 'single' && 'rounded-md',
+                        // tracejado onde o atendimento continua (dia anterior / seguinte)
+                        part === 'first' && 'rounded-t-md border-b-2 border-b-ink/25 [border-bottom-style:dashed]',
+                        part === 'last' && 'rounded-b-md border-t-2 border-t-ink/25 [border-top-style:dashed]',
+                        part === 'middle' && 'border-y-2 border-y-ink/25 [border-bottom-style:dashed] [border-top-style:dashed]',
                         meta.block,
                         SERVICE_BORDER[a.serviceType.color],
                         a.status === 'cancelled' && 'opacity-60',
                       )}
                       style={{ top: top + 1, height: h, left: `calc(${(lane / lanes) * 100}% + 3px)`, width: `calc(${100 / lanes}% - 6px)` }}
-                      aria-label={`${a.startTime} às ${a.endTime}, ${a.clientName}, ${a.serviceType.name}, ${meta.label}`}
+                      aria-label={`${range}, ${a.clientName}, ${a.serviceType.name}, ${meta.label}`}
                     >
                       <span className="tabular block truncate text-[11px] font-semibold text-ink-soft">
-                        {a.startTime}
-                        {!multi && ` – ${a.endTime}`}
+                        {part === 'single' && (
+                          <>
+                            {a.startTime}
+                            {!multi && ` – ${a.endTime}`}
+                          </>
+                        )}
+                        {part === 'first' && `${a.startTime} · continua`}
+                        {part === 'middle' && 'Continuação'}
+                        {part === 'last' && `Continuação · até ${a.endTime}`}
                       </span>
                       <span className={cn('block truncate text-[13px] font-semibold leading-tight text-ink', a.status === 'cancelled' && 'line-through')}>{a.clientName}</span>
                       {h > 56 && <span className="block truncate text-[12px] text-muted">{multi ? a.neighborhood : `${a.serviceType.name} · ${a.neighborhood}`}</span>}
@@ -465,7 +501,7 @@ function WeekList({
 }) {
   const today = todayISO();
   const selected = days.includes(date) ? date : days[0]!;
-  const dayItems = items.filter((a) => a.date === selected);
+  const dayItems = items.filter((a) => coversDate(a, selected));
   return (
     <div>
       <div className="grid grid-cols-7 gap-1" role="tablist" aria-label="Dias da semana">
@@ -499,7 +535,7 @@ function WeekList({
       </div>
       <div className="mt-3 flex flex-col gap-2">
         {dayItems.length ? (
-          dayItems.map((a) => <AppointmentCard key={a.id} a={a} onOpen={() => onOpen(a.id)} />)
+          dayItems.map((a) => <AppointmentCard key={a.id} a={a} day={selected} onOpen={() => onOpen(a.id)} />)
         ) : (
           <EmptyState title="Dia livre" description="Nenhum atendimento neste dia." className="rounded-lg border border-dashed border-line-strong py-8" />
         )}
@@ -530,7 +566,7 @@ function MonthView({
   const today = todayISO();
   const byDay = useMemo(() => {
     const map: Record<string, AppointmentDTO[]> = {};
-    for (const a of items) (map[a.date] ??= []).push(a);
+    for (const a of items) for (const d of datesOf(a)) (map[d] ??= []).push(a);
     return map;
   }, [items]);
   const selectedItems = byDay[date] ?? [];
@@ -589,7 +625,7 @@ function MonthView({
                         }}
                         className={cn('flex items-center gap-1.5 truncate rounded px-1.5 py-0.5 text-[11px] font-medium text-ink', STATUS_META[a.status].block, a.status === 'cancelled' && 'line-through opacity-70')}
                       >
-                        <span className="tabular font-semibold">{a.startTime}</span>
+                        <span className="tabular font-semibold">{a.date === d ? a.startTime : 'cont.'}</span>
                         <span className="truncate">{a.clientName}</span>
                       </span>
                     ))}
@@ -615,7 +651,7 @@ function MonthView({
           <h2 className="text-[15px] font-semibold text-ink">{capitalize(formatLongDate(date))}</h2>
           <div className="mt-3 flex flex-col gap-2">
             {selectedItems.length ? (
-              selectedItems.map((a) => <AppointmentCard key={a.id} a={a} onOpen={() => onOpen(a.id)} />)
+              selectedItems.map((a) => <AppointmentCard key={a.id} a={a} day={date} onOpen={() => onOpen(a.id)} />)
             ) : (
               <EmptyState title="Dia livre" description="Toque em outro dia para ver os atendimentos." className="rounded-lg border border-dashed border-line-strong py-8" />
             )}

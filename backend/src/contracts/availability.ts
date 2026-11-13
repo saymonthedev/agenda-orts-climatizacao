@@ -3,7 +3,7 @@ import { isoDateSchema } from './common';
 
 export const availabilityQuerySchema = z.object({
   date: isoDateSchema,
-  durationMinutes: z.coerce.number().int().min(15).max(720).optional(),
+  durationMinutes: z.coerce.number().int().min(15).max(14 * 24 * 60).optional(),
   excludeId: z.uuid().optional(),
 });
 

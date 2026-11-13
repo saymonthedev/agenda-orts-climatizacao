@@ -1,7 +1,7 @@
 'use client';
 
 import type { AppointmentDTO, AppointmentStatus, ScheduleViolation } from '@orts/backend/contracts';
-import { appointmentCreateSchema, APPOINTMENT_STATUSES, STATUS_LABELS } from '@orts/backend/contracts';
+import { appointmentCreateSchema, APPOINTMENT_STATUSES, isMultiDay, MAX_APPOINTMENT_MINUTES, STATUS_LABELS } from '@orts/backend/contracts';
 import { AlertTriangle } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { AutosaveIndicator } from '@/components/ui/autosave-indicator';
@@ -17,13 +17,26 @@ import { toast } from '@/components/ui/toast';
 import { useAvailability, useCreateAppointment, useServices, useSettings, useUpdateAppointment } from '@/hooks/admin/queries';
 import { useAutosave } from '@/hooks/use-autosave';
 import { ApiError } from '@/lib/api';
-import { formatDurationLabel, todayISO } from '@/lib/format';
+import { addDays, formatDurationLabel, todayISO } from '@/lib/format';
 import { ServiceDot } from './status';
 import { isWarningState, TimeSlots } from './time-slots';
 
 export type FormPrefill = { date?: string; startTime?: string };
 
 const DURATIONS = [30, 45, 60, 90, 120, 150, 180, 240, 300, 360, 420, 480];
+
+/** Horários de término (de 30 em 30 minutos) para atendimentos de vários dias. */
+const END_TIMES = Array.from({ length: 48 }, (_, i) => `${String(Math.floor(i / 2)).padStart(2, '0')}:${i % 2 ? '30' : '00'}`);
+
+/** Minutos entre dois horários locais (o Brasil não tem horário de verão). */
+function minutesBetween(date: string, time: string, endDate: string, endTime: string): number {
+  const at = (d: string, t: string) => {
+    const [y, m, day] = d.split('-').map(Number) as [number, number, number];
+    const [hh, mm] = t.split(':').map(Number) as [number, number];
+    return Date.UTC(y, m - 1, day, hh, mm);
+  };
+  return Math.round((at(endDate, endTime) - at(date, time)) / 60000);
+}
 
 type Fields = {
   clientName: string;
@@ -107,6 +120,13 @@ export function AppointmentForm({
   const [f, setF] = useState<Fields>(() => initialFields(appointment, prefill));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [durationTouched, setDurationTouched] = useState(editing);
+  // termina em outro dia: a duração passa a vir da data e do horário de término
+  const [multiDay, setMultiDay] = useState(() => Boolean(appointment && isMultiDay(appointment)));
+  const [end, setEnd] = useState(() =>
+    appointment && isMultiDay(appointment)
+      ? { date: appointment.endDate, time: appointment.endTime }
+      : { date: addDays(prefill?.date ?? todayISO(), 1), time: prefill?.startTime ?? '12:00' },
+  );
   const [allowOutside, setAllowOutside] = useState(false);
   const [violations, setViolations] = useState<ScheduleViolation[] | null>(null);
   const [conflict, setConflict] = useState<string | null>(null);
@@ -129,15 +149,35 @@ export function AppointmentForm({
     }
   };
 
+  useEffect(() => {
+    if (!multiDay || !f.startTime) return;
+    const minutes = minutesBetween(f.date, f.startTime, end.date, end.time);
+    setF((prev) => (prev.durationMinutes === minutes ? prev : { ...prev, durationMinutes: minutes }));
+    setConflict(null);
+    setViolations(null);
+  }, [multiDay, f.date, f.startTime, end.date, end.time]);
+
+  function toggleMultiDay(on: boolean) {
+    setMultiDay(on);
+    setDurationTouched(true);
+    if (on) {
+      setEnd({ date: addDays(f.date, 1), time: f.startTime || '12:00' });
+    } else {
+      const service = services.data?.find((s) => s.id === f.serviceTypeId);
+      set('durationMinutes', service?.durationMinutes ?? settings.data?.defaultDurationMinutes ?? 90);
+    }
+  }
+
   // duração padrão: do serviço escolhido ou da configuração da agenda
   useEffect(() => {
-    if (durationTouched) return;
+    if (durationTouched || multiDay) return;
     const service = services.data?.find((s) => s.id === f.serviceTypeId);
     const fallback = settings.data?.defaultDurationMinutes ?? 90;
     setF((prev) => ({ ...prev, durationMinutes: service?.durationMinutes ?? (prev.durationMinutes || fallback) }));
-  }, [f.serviceTypeId, services.data, settings.data, durationTouched]);
+  }, [f.serviceTypeId, services.data, settings.data, durationTouched, multiDay]);
 
-  const availability = useAvailability(open ? f.date : null, f.durationMinutes || 60, appointment?.id);
+  // no modo de vários dias a grade mostra só se o horário de início está livre
+  const availability = useAvailability(open ? f.date : null, multiDay ? 30 : f.durationMinutes || 60, appointment?.id);
   const slotState = availability.data?.slots.find((s) => s.time === f.startTime)?.state;
   const keepTime = editing && appointment?.date === f.date ? appointment.startTime : undefined;
   const timeUnchanged = editing && appointment?.date === f.date && appointment?.startTime === f.startTime && appointment?.durationMinutes === f.durationMinutes;
@@ -172,6 +212,13 @@ export function AppointmentForm({
     },
   });
   const shownErrors = editing ? { ...errors, ...autosave.errors } : errors;
+  const endError = !multiDay
+    ? undefined
+    : f.startTime && f.durationMinutes < 15
+      ? 'O término precisa ser depois do início.'
+      : f.durationMinutes > MAX_APPOINTMENT_MINUTES
+        ? 'Um atendimento pode durar até 14 dias.'
+        : shownErrors.durationMinutes;
 
   /** Fecha a edição salvando o que estiver pendente; se algo não pôde ser salvo, pergunta antes. */
   async function closeEditing() {
@@ -313,19 +360,45 @@ export function AppointmentForm({
         <fieldset className="flex flex-col gap-4">
           <legend className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-subtle">Quando</legend>
           <div className="grid gap-4 sm:grid-cols-2">
-            <DatePicker label="Data" value={f.date} onChange={(d) => set('date', d)} error={shownErrors.date} />
-            <Select
-              label="Duração"
-              value={f.durationMinutes ? String(f.durationMinutes) : ''}
-              onChange={(v) => {
-                setDurationTouched(true);
-                set('durationMinutes', Number(v));
-              }}
-              options={durationOptions}
-              error={shownErrors.durationMinutes}
-              hint={availability.data?.bufferMinutes ? `Intervalo de ${formatDurationLabel(availability.data.bufferMinutes)} entre atendimentos.` : undefined}
-            />
+            <DatePicker label={multiDay ? 'Data de início' : 'Data'} value={f.date} onChange={(d) => set('date', d)} error={shownErrors.date} />
+            {multiDay ? (
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <p className="text-[13px] font-semibold text-ink-soft">Duração total</p>
+                <p className="tabular flex h-11 items-center rounded-md border border-dashed border-line-strong px-3.5 text-[15px] text-ink" aria-live="polite">
+                  {f.startTime && f.durationMinutes >= 15 ? formatDurationLabel(f.durationMinutes) : <span className="text-subtle">Escolha o início e o término</span>}
+                </p>
+              </div>
+            ) : (
+              <Select
+                label="Duração"
+                value={f.durationMinutes ? String(f.durationMinutes) : ''}
+                onChange={(v) => {
+                  setDurationTouched(true);
+                  set('durationMinutes', Number(v));
+                }}
+                options={durationOptions}
+                error={shownErrors.durationMinutes}
+                hint={availability.data?.bufferMinutes ? `Intervalo de ${formatDurationLabel(availability.data.bufferMinutes)} entre atendimentos.` : undefined}
+              />
+            )}
           </div>
+          <Switch
+            checked={multiDay}
+            onCheckedChange={toggleMultiDay}
+            label="Termina em outro dia"
+            description="Para serviços que continuam no dia seguinte ou levam vários dias."
+          />
+          {multiDay && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <DatePicker label="Data do término" value={end.date} min={f.date} onChange={(d) => setEnd((prev) => ({ ...prev, date: d }))} error={endError} />
+              <Select
+                label="Horário do término"
+                value={end.time}
+                onChange={(v) => setEnd((prev) => ({ ...prev, time: v }))}
+                options={(END_TIMES.includes(end.time) ? END_TIMES : [...END_TIMES, end.time].sort()).map((t) => ({ value: t, label: t }))}
+              />
+            </div>
+          )}
           <TimeSlots
             availability={availability.data}
             loading={availability.isLoading}

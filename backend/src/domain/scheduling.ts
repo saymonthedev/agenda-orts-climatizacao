@@ -6,7 +6,7 @@ import type { AppointmentStatus, ScheduleViolation } from '../contracts/appointm
 import type { AvailabilitySlot, SlotState } from '../contracts/availability';
 import { minutesFromTime, timeFromMinutes } from '../contracts/common';
 import type { BreakWindow, DayHours } from '../contracts/settings';
-import { addMinutes, weekdayOfDate, zonedInstant, zonedParts } from './time';
+import { addDaysToDate, addMinutes, weekdayOfDate, zonedInstant, zonedParts } from './time';
 
 export type ScheduleRules = {
   timezone: string;
@@ -44,12 +44,10 @@ export function checkScheduleRules(range: TimeRange, rules: ScheduleRules, now: 
   const start = zonedParts(range.start, rules.timezone);
   const end = zonedParts(range.end, rules.timezone);
 
-  // termina no mesmo dia (ou exatamente à meia-noite seguinte)
+  // terminar exatamente à meia-noite seguinte ainda conta como o mesmo dia
   const endsAtMidnight = end.minutes === 0 && end.date !== start.date;
   const endMinutes = endsAtMidnight ? 24 * 60 : end.minutes;
-  if (end.date !== start.date && !endsAtMidnight) {
-    violations.push({ code: 'CROSSES_MIDNIGHT', message: 'O atendimento precisa começar e terminar no mesmo dia.' });
-  }
+  const lastDate = endsAtMidnight ? addDaysToDate(end.date, -1) : end.date;
 
   if (range.start.getTime() < now.getTime()) {
     violations.push({ code: 'IN_PAST', message: 'O horário escolhido já passou.' });
@@ -59,6 +57,8 @@ export function checkScheduleRules(range: TimeRange, rules: ScheduleRules, now: 
       message: `A antecedência mínima configurada é de ${formatDuration(rules.minAdvanceMinutes)}.`,
     });
   }
+
+  if (lastDate !== start.date) return [...violations, ...checkMultiDay(start, lastDate, endMinutes, rules)];
 
   const day = hoursForDate(start.date, rules);
   if (!day) {
@@ -85,6 +85,25 @@ export function checkScheduleRules(range: TimeRange, rules: ScheduleRules, now: 
     });
   }
 
+  return violations;
+}
+
+/**
+ * Atendimento de vários dias: começa dentro do expediente do primeiro dia e termina dentro
+ * do expediente do último. As noites e as pausas no meio fazem parte do serviço.
+ */
+function checkMultiDay(start: { date: string; minutes: number }, lastDate: string, endMinutes: number, rules: ScheduleRules): ScheduleViolation[] {
+  const violations: ScheduleViolation[] = [];
+  const first = hoursForDate(start.date, rules);
+  const last = hoursForDate(lastDate, rules);
+  if (!first) violations.push({ code: 'CLOSED_DAY', message: 'Não há atendimento no dia de início.' });
+  else if (start.minutes < minutesFromTime(first.start) || start.minutes >= minutesFromTime(first.end)) {
+    violations.push({ code: 'OUTSIDE_HOURS', message: `O início está fora do horário de atendimento (${first.start} às ${first.end}).` });
+  }
+  if (!last) violations.push({ code: 'CLOSED_DAY', message: 'Não há atendimento no dia do término.' });
+  else if (endMinutes <= minutesFromTime(last.start) || endMinutes > minutesFromTime(last.end)) {
+    violations.push({ code: 'OUTSIDE_HOURS', message: `O término está fora do horário de atendimento (${last.start} às ${last.end}).` });
+  }
   return violations;
 }
 

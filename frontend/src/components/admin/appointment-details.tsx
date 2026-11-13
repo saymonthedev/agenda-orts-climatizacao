@@ -1,7 +1,7 @@
 'use client';
 
 import type { AppointmentDTO, AppointmentStatus, FinanceEntryDTO } from '@orts/backend/contracts';
-import { APPOINTMENT_STATUSES, FINANCE_STATUS_LABELS, PAYMENT_METHOD_LABELS } from '@orts/backend/contracts';
+import { APPOINTMENT_STATUSES, datesOf, FINANCE_STATUS_LABELS, isMultiDay, PAYMENT_METHOD_LABELS } from '@orts/backend/contracts';
 import { AlertTriangle, Clock, MapPin, Navigation, NotebookPen, Pencil, Phone, Plus, Trash2, Wallet, Wrench } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { WhatsAppIcon } from '@/components/site/icons';
@@ -104,15 +104,22 @@ export function AppointmentDetails({ id, onClose, onEdit }: { id: string | null;
         <div className="flex flex-col gap-6 pt-1">
           <div className="on-dark rounded-lg bg-navy-900 p-5 text-porcelain">
             <div className="flex items-start justify-between gap-3">
-              <p className="text-[13px] font-medium text-porcelain/70">{capitalize(formatLongDate(a.date))}</p>
+              <p className="text-[13px] font-medium text-porcelain/70">
+                {capitalize(formatLongDate(a.date))}
+                {isMultiDay(a) && <> até {formatLongDate(a.endDate)}</>}
+              </p>
               <StatusBadge status={a.status} />
             </div>
             <p className="tabular mt-2 text-[2rem] font-semibold leading-none tracking-[-0.02em]">
               {a.startTime}
-              <span className="text-porcelain/45"> – {a.endTime}</span>
+              <span className="text-porcelain/45">
+                {isMultiDay(a) ? ' → ' : ' – '}
+                {a.endTime}
+              </span>
             </p>
-            <p className="mt-2 flex items-center gap-2 text-[13px] text-porcelain/70">
+            <p className="mt-2 flex flex-wrap items-center gap-2 text-[13px] text-porcelain/70">
               <Clock className="size-3.5" aria-hidden="true" /> {formatDurationLabel(a.durationMinutes)}
+              {isMultiDay(a) && <span className="rounded-full bg-porcelain/12 px-2 py-0.5 text-[11px] font-semibold text-porcelain/85">{datesOf(a).length} dias</span>}
               {a.outsideBusinessHours && <span className="rounded-full bg-champagne-400/20 px-2 py-0.5 text-[11px] font-semibold text-champagne-300">Encaixe</span>}
             </p>
           </div>

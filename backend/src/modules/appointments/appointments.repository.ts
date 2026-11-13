@@ -32,7 +32,8 @@ export type ListFilters = {
 
 function buildConditions(filters: ListFilters): SQL | undefined {
   const conditions: (SQL | undefined)[] = [];
-  if (filters.start) conditions.push(gte(appointments.startsAt, filters.start));
+  // sobreposição com o período: inclui atendimentos de vários dias que começaram antes
+  if (filters.start) conditions.push(gt(appointments.endsAt, filters.start));
   if (filters.end) conditions.push(lt(appointments.startsAt, filters.end));
   if (filters.statuses?.length) conditions.push(inArray(appointments.status, filters.statuses));
   const term = filters.search?.trim();

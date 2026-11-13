@@ -160,6 +160,7 @@ Todas são configuráveis em **Configurações** e validadas no backend:
 - **Antecedência mínima** para novos horários.
 - **Duração** padrão e por tipo de serviço.
 - **Encaixe:** horário fora do expediente, na pausa ou em cima da hora só é aceito com confirmação explícita ("Registrar como encaixe"). **Conflitos nunca são liberados.**
+- **Atendimentos de vários dias:** com **Termina em outro dia** ligado, o agendamento recebe data e horário de término (até 14 dias). O início precisa estar no expediente do primeiro dia e o término no do último; as noites e as pausas no meio fazem parte do serviço. O conflito é verificado no período inteiro, e o atendimento aparece em todos os dias que ocupa (agenda dia/semana/mês, painel e lista), marcado como "continua" e "continuação".
 - Fuso fixo de Jaraguá do Sul (`America/Sao_Paulo`), independente do servidor.
 
 ## Financeiro
@@ -203,8 +204,8 @@ npm test
 npm run test:e2e
 ```
 
-- **Backend (58 testes):** regras de agenda e fuso, autenticação, força bruta, CSRF, CRUD, conflitos (inclusive concorrentes e direto no banco), filtros, busca, configurações, autorização em variações de rota e financeiro (somas, comparação com o mesmo período, MEI, vínculo com atendimentos, CSV).
-- **Ponta a ponta (15 cenários, rodados em desktop e celular):** site, proteção do painel, fluxo completo de atendimento, configurações com salvamento automático, confirmação de exclusões, financeiro (lançar, editar, excluir, MEI e categorias), logout, auditoria **axe** (WCAG 2.1 AA) em todas as telas e varredura de 15 larguras (320–1440px) contra qualquer elemento fora da área útil.
+- **Backend (60 testes):** regras de agenda e fuso, autenticação, força bruta, CSRF, CRUD, conflitos (inclusive concorrentes e direto no banco), filtros, busca, configurações, autorização em variações de rota e financeiro (somas, comparação com o mesmo período, MEI, vínculo com atendimentos, CSV).
+- **Ponta a ponta (17 cenários, rodados em desktop e celular):** site, proteção do painel, fluxo completo de atendimento, configurações com salvamento automático, confirmação de exclusões, financeiro (lançar, editar, excluir, MEI e categorias), atendimento de vários dias, avaliações do Google, logout, auditoria **axe** (WCAG 2.1 AA) em todas as telas e varredura de 15 larguras (320–1440px) contra qualquer elemento fora da área útil.
 
 ## Deploy (Vercel + Neon)
 

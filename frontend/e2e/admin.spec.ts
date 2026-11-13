@@ -98,6 +98,43 @@ test.describe('painel administrativo', () => {
     await expect(page.getByText('Atendimento excluído.')).toBeVisible();
   });
 
+  test('atendimento que termina em outro dia aparece nos dois dias', async ({ page }, info) => {
+    // segunda a quinta, para o término cair num dia útil
+    const nextDay = (d: string) => new Date(Date.parse(`${d}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+    let start = futureWeekday(info.project.name === 'celular' ? 24 : 21);
+    while (![1, 2, 3, 4].includes(new Date(`${start}T12:00:00Z`).getUTCDay())) start = nextDay(start);
+    const end = nextDay(start);
+    const dm = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
+    const client = `Obra ${info.project.name}`;
+    await login(page);
+
+    await page.getByRole('button', { name: 'Novo agendamento' }).first().click();
+    const form = page.getByRole('dialog');
+    await form.getByLabel('Nome do cliente').fill(client);
+    await form.getByLabel('Telefone / WhatsApp').fill('47999881122');
+    await form.getByLabel('Tipo de serviço').click();
+    await page.getByRole('option', { name: /Instalação/ }).click();
+    await pickDate(page, start);
+    await form.getByRole('button', { name: /^14:00, livre/ }).click();
+    await form.getByRole('switch', { name: /Termina em outro dia/ }).click();
+    await form.getByLabel('Horário do término').click();
+    await page.getByRole('option', { name: '11:00', exact: true }).click();
+    await expect(form.getByText('21h', { exact: true })).toBeVisible();
+    await form.getByLabel('Endereço').fill('Rua Erwino Menegotti, 450');
+    await form.getByLabel('Bairro').fill('Vila Nova');
+    await page.getByRole('button', { name: 'Agendar atendimento' }).click();
+    await expect(page.getByText('Atendimento agendado.')).toBeVisible();
+    const details = page.getByRole('dialog', { name: client });
+    await expect(details).toContainText('2 dias');
+    await page.keyboard.press('Escape');
+
+    // no segundo dia aparece como continuação, até as 11h
+    await page.goto(`/admin/agenda?view=day&date=${end}`);
+    await expect(page.getByRole('button', { name: new RegExp(`até ${dm(end)} 11:00, ${client}`) })).toBeVisible();
+    await expect(page.getByText('Continuação · até 11:00')).toBeVisible();
+    await noHorizontalOverflow(page);
+  });
+
   test('configurações alteram as regras da agenda', async ({ page }) => {
     await login(page);
     await page.goto('/admin/configuracoes');

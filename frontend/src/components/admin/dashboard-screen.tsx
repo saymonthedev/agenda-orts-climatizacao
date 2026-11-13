@@ -1,6 +1,7 @@
 'use client';
 
 import type { AppointmentDTO, DashboardDTO } from '@orts/backend/contracts';
+import { isMultiDay } from '@orts/backend/contracts';
 import { AlertTriangle, ArrowRight, CalendarCheck2, CalendarDays, CheckCheck, ChevronRight, CircleDashed, Navigation, Plus, Play, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { WhatsAppIcon } from '@/components/site/icons';
@@ -12,7 +13,7 @@ import { Tooltip } from '@/components/ui/tooltip';
 import { useChangeStatus, useDashboard, useFinanceSummary, useMe, useSettings } from '@/hooks/admin/queries';
 import { ApiError } from '@/lib/api';
 import { cn } from '@/lib/cn';
-import { capitalize, formatLongDate, formatWeekdayShort, minutesOf, nowMinutes, todayISO } from '@/lib/format';
+import { capitalize, formatDayMonth, formatLongDate, formatShortDate, formatWeekdayShort, nowMinutes, todayISO } from '@/lib/format';
 import { mapsDirectionsLink, whatsappLink } from '@/lib/links';
 import { buildConfirmationMessage, mapsQueryFor } from '@/lib/messages';
 import { formatBRL, formatSignedBRL, monthLabel, monthOf } from '@/lib/money';
@@ -25,14 +26,18 @@ function greeting() {
   return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
 }
 
+/** Acontecendo agora (vale também para o que começou num dia anterior). */
+const isOngoing = (a: AppointmentDTO, now = Date.now()) => Date.parse(a.startsAt) <= now && Date.parse(a.endsAt) > now;
+
 function relativeStart(a: AppointmentDTO): string {
+  const now = Date.now();
+  if (Date.parse(a.startsAt) <= now) return isOngoing(a, now) ? 'agora' : 'hoje';
   const today = todayISO();
   if (a.date !== today) {
     const diffDays = Math.round((Date.parse(a.date) - Date.parse(today)) / 86_400_000);
     return diffDays === 1 ? 'amanhã' : `em ${diffDays} dias`;
   }
-  const diff = minutesOf(a.startTime) - nowMinutes();
-  if (diff <= 0) return minutesOf(a.endTime) > nowMinutes() ? 'agora' : 'hoje';
+  const diff = Math.round((Date.parse(a.startsAt) - now) / 60000);
   if (diff < 60) return `em ${diff} min`;
   const h = Math.floor(diff / 60);
   const m = diff % 60;
@@ -175,7 +180,7 @@ function NextAppointment({ appointment: a }: { appointment: AppointmentDTO | nul
           <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
             <p className="tabular text-[2.4rem] font-semibold leading-none tracking-[-0.02em]">{a.startTime}</p>
             <p className="text-[15px] text-porcelain/60">
-              {a.date === todayISO() ? 'hoje' : capitalize(formatLongDate(a.date))} · até {a.endTime}
+              {a.date === todayISO() ? 'hoje' : capitalize(formatLongDate(a.date))} · até {isMultiDay(a) ? `${formatShortDate(a.endDate)}, ${a.endTime}` : a.endTime}
             </p>
           </div>
           <p className="mt-3 truncate text-xl font-semibold group-hover:underline group-hover:decoration-champagne-400 group-hover:underline-offset-4">
@@ -220,17 +225,20 @@ function SectionCard({ title, action, children, className }: { title: string; ac
 }
 
 function AppointmentRow({ a, onOpen, trailing }: { a: AppointmentDTO; onOpen: () => void; trailing?: React.ReactNode }) {
-  const now = nowMinutes();
-  const current = a.date === todayISO() && minutesOf(a.startTime) <= now && minutesOf(a.endTime) > now && a.status !== 'cancelled';
+  const current = isOngoing(a) && a.status !== 'cancelled';
+  const continued = a.date < todayISO(); // começou num dia anterior e segue hoje
   return (
     <li className={cn('flex items-center gap-3 px-4 sm:px-5', current && 'bg-steel-100/60')}>
       <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 py-3.5 text-left">
-        <span className="tabular w-12 shrink-0 text-[15px] font-semibold text-ink">{a.startTime}</span>
+        <span className={cn('tabular w-12 shrink-0 font-semibold text-ink', continued ? 'text-[12px] uppercase tracking-wide text-steel-600' : 'text-[15px]')}>
+          {continued ? 'cont.' : a.startTime}
+        </span>
         <span className={cn('h-9 w-[3px] shrink-0 rounded-full', SERVICE_COLOR[a.serviceType.color])} aria-hidden="true" />
         <span className="min-w-0 flex-1">
           <span className={cn('block truncate text-[15px] font-semibold text-ink', a.status === 'cancelled' && 'text-subtle line-through')}>{a.clientName}</span>
           <span className="block truncate text-[13px] text-muted">
             {a.serviceType.name} · {a.neighborhood}
+            {isMultiDay(a) && ` · até ${formatDayMonth(a.endDate)} ${a.endTime}`}
           </span>
         </span>
       </button>

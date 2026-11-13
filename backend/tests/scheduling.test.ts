@@ -72,8 +72,20 @@ describe('regras de expediente', () => {
     expect(codes(range(MONDAY, '10:30', 60), now)).toEqual([]);
   });
 
-  it('não permite atravessar a meia-noite', () => {
-    expect(codes(range(MONDAY, '23:00', 120))).toContain('CROSSES_MIDNIGHT');
+  it('aceita atendimento que termina em outro dia dentro do expediente', () => {
+    expect(codes(range(MONDAY, '14:00', 21 * 60))).toEqual([]); // segunda 14h → terça 11h
+    expect(codes(range(MONDAY, '08:00', 2 * 24 * 60 + 10 * 60))).toEqual([]); // segunda 8h → quarta 18h
+    // pausas no meio de um serviço de vários dias fazem parte dele
+    expect(codes(range(MONDAY, '11:00', 25 * 60 + 30))).toEqual([]); // segunda 11h → terça 12h30
+    // domingo fechado no meio não importa: sábado 10h → segunda 10h
+    expect(codes(range('2030-01-12', '10:00', 48 * 60))).toEqual([]);
+  });
+
+  it('exige início e término dentro do expediente nos atendimentos de vários dias', () => {
+    expect(codes(range(MONDAY, '23:00', 120))).toContain('OUTSIDE_HOURS'); // começa à noite
+    expect(codes(range(MONDAY, '14:00', 29 * 60))).toContain('OUTSIDE_HOURS'); // termina terça 19h
+    expect(codes(range('2030-01-11', '16:00', 44 * 60))).toContain('CLOSED_DAY'); // termina no domingo
+    expect(codes(range(MONDAY, '22:00', 120))).toContain('OUTSIDE_HOURS'); // termina à meia-noite
   });
 });
 

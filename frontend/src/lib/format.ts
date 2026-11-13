@@ -23,6 +23,8 @@ export const formatShortDate = (date: string) => fmt({ day: 'numeric', month: 's
 /** "11/11/2026" */
 export const formatNumericDate = (date: string) => fmt({ day: '2-digit', month: '2-digit', year: 'numeric' }).format(toDate(date));
 /** "ter" */
+/** "13/11" */
+export const formatDayMonth = (date: string) => `${date.slice(8, 10)}/${date.slice(5, 7)}`;
 export const formatWeekdayShort = (date: string) => fmt({ weekday: 'short' }).format(toDate(date)).replace('.', '');
 /** "novembro de 2026" */
 export const formatMonthYear = (date: string) => fmt({ month: 'long', year: 'numeric' }).format(toDate(date));
@@ -36,6 +38,11 @@ export function formatHour(time: string): string {
 }
 
 export function formatDurationLabel(minutes: number): string {
+  if (minutes >= 24 * 60) {
+    const days = Math.floor(minutes / (24 * 60));
+    const rest = minutes % (24 * 60);
+    return `${days} ${days === 1 ? 'dia' : 'dias'}${rest ? ` e ${formatDurationLabel(rest)}` : ''}`;
+  }
   if (minutes < 60) return `${minutes} min`;
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;

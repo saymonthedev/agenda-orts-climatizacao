@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { addDaysToDate } from '../src/domain/time';
 import { futureWeekday, json, setupTestApp } from './helpers';
 
 let t: Awaited<ReturnType<typeof setupTestApp>>;
@@ -189,8 +190,9 @@ describe('agendamentos', () => {
     const cancelled = await json(await t.request('/appointments?status=cancelled', { cookie }));
     expect(cancelled.items.every((a: { status: string }) => a.status === 'cancelled')).toBe(true);
 
+    // período: tudo que ocupa o dia, inclusive o que começou antes
     const range = await json(await t.request(`/appointments?from=${TUESDAY}&to=${TUESDAY}`, { cookie }));
-    expect(range.items.every((a: { date: string }) => a.date === TUESDAY)).toBe(true);
+    expect(range.items.every((a: { date: string; endDate: string }) => a.date <= TUESDAY && a.endDate >= TUESDAY)).toBe(true);
 
     const bad = await t.request('/appointments?status=foo', { cookie });
     expect(bad.status).toBe(422);
@@ -204,6 +206,34 @@ describe('agendamentos', () => {
     const state = (time: string) => availability.slots.find((s: { time: string }) => s.time === time)?.state;
     expect(state('10:00')).toBe('busy');
     expect(state('12:00')).toBe('break');
+  });
+
+  it('aceita atendimento que termina em outro dia e ocupa o período inteiro', async () => {
+    const wed = futureWeekday(3, 28);
+    const thu = addDaysToDate(wed, 1);
+    // quarta 14h → quinta 11h
+    const res = await create({ ...base(), date: wed, startTime: '14:00', durationMinutes: 21 * 60, clientName: 'Obra em dois dias' });
+    expect(res.status).toBe(201);
+    const { appointment } = await json(res);
+    expect(appointment).toMatchObject({ date: wed, startTime: '14:00', endDate: thu, endTime: '11:00', durationMinutes: 21 * 60, outsideBusinessHours: false });
+
+    // o segundo dia fica ocupado
+    expect((await create({ ...base(), date: thu, startTime: '09:00', durationMinutes: 60, clientName: 'Choque' })).status).toBe(409);
+    const thursday = await json(await t.request(`/appointments?from=${thu}&to=${thu}`, { cookie }));
+    expect(thursday.items.map((a: { id: string }) => a.id)).toContain(appointment.id);
+    const { availability } = await json(await t.request(`/availability?date=${thu}&durationMinutes=60`, { cookie }));
+    const state = (time: string) => availability.slots.find((s: { time: string }) => s.time === time)?.state;
+    expect(state('09:00')).toBe('busy');
+    expect(state('14:00')).toBe('available');
+
+    // término fora do expediente pede encaixe; mais de 14 dias é recusado
+    const late = await create({ ...base(), date: addDaysToDate(wed, 7), startTime: '14:00', durationMinutes: 30 * 60, clientName: 'Termina tarde' });
+    expect((await json(late)).error.code).toBe('OUTSIDE_SCHEDULE');
+    expect((await create({ ...base(), date: addDaysToDate(wed, 14), durationMinutes: 15 * 24 * 60 })).status).toBe(422);
+
+    // remarcar para terminar no mesmo dia volta a ser um atendimento comum
+    const moved = await t.request(`/appointments/${appointment.id}`, { method: 'PATCH', cookie, json: { durationMinutes: 120 } });
+    expect((await json(moved)).appointment).toMatchObject({ endDate: wed, endTime: '16:00' });
   });
 
   it('exclui atendimento', async () => {

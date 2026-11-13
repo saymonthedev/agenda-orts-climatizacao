@@ -45,6 +45,7 @@ export function toAppointmentDTO(row: AppointmentWithService, timeZone: string):
     endsAt: a.endsAt.toISOString(),
     date: start.date,
     startTime: start.time,
+    endDate: end.date,
     endTime: end.time,
     durationMinutes: diffMinutes(a.endsAt, a.startsAt),
     address: a.address,
@@ -75,8 +76,6 @@ function enforceScheduleRules(range: TimeRange, rules: ScheduleRules, opts: { al
     // registros históricos (concluídos/cancelados) podem estar no passado
     violations = violations.filter((v) => v.code !== 'IN_PAST' && v.code !== 'TOO_SOON');
   }
-  const hard = violations.find((v) => v.code === 'CROSSES_MIDNIGHT');
-  if (hard) throw new BusinessRuleError('INVALID_TIME', hard.message, { violations: [hard] });
   if (violations.length && !opts.allowOutside) {
     throw new BusinessRuleError('OUTSIDE_SCHEDULE', violations[0]!.message, { violations });
   }

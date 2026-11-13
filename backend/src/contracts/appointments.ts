@@ -18,6 +18,9 @@ export const ACTIVE_STATUSES: AppointmentStatus[] = ['pending', 'confirmed', 'in
 
 const statusSchema = z.enum(APPOINTMENT_STATUSES, { error: 'Status inválido.' });
 
+/** Um atendimento pode começar num dia e terminar em outro (até 14 dias). */
+export const MAX_APPOINTMENT_MINUTES = 14 * 24 * 60;
+
 const baseFields = {
   clientName: z
     .string({ error: 'Informe o nome do cliente.' })
@@ -32,7 +35,7 @@ const baseFields = {
     .number({ error: 'Informe a duração.' })
     .int()
     .min(15, 'Duração mínima de 15 minutos.')
-    .max(720, 'Duração máxima de 12 horas.'),
+    .max(MAX_APPOINTMENT_MINUTES, 'Duração máxima de 14 dias.'),
   address: z.string({ error: 'Informe o endereço.' }).trim().min(3, 'Informe o endereço.').max(200),
   neighborhood: z.string({ error: 'Informe o bairro.' }).trim().min(2, 'Informe o bairro.').max(80),
   city: z.string().trim().min(2, 'Informe a cidade.').max(80),
@@ -98,6 +101,8 @@ export type AppointmentDTO = {
   /** Data/horários no fuso da empresa */
   date: string;
   startTime: string;
+  /** Data do término (igual a `date` quando termina no mesmo dia) */
+  endDate: string;
   endTime: string;
   durationMinutes: number;
   address: string;
@@ -113,7 +118,7 @@ export type AppointmentDTO = {
 };
 
 /** Motivos de violação das regras de agenda (configurações). */
-export type ScheduleViolationCode = 'CLOSED_DAY' | 'OUTSIDE_HOURS' | 'OVERLAPS_BREAK' | 'IN_PAST' | 'TOO_SOON' | 'CROSSES_MIDNIGHT';
+export type ScheduleViolationCode = 'CLOSED_DAY' | 'OUTSIDE_HOURS' | 'OVERLAPS_BREAK' | 'IN_PAST' | 'TOO_SOON';
 
 export type ScheduleViolation = { code: ScheduleViolationCode; message: string };
 
@@ -124,3 +129,29 @@ export type ConflictSummary = {
   endTime: string;
   date: string;
 };
+
+const shiftDate = (date: string, days: number): string => {
+  const [y, m, d] = date.split('-').map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+};
+
+type DatedAppointment = Pick<AppointmentDTO, 'date' | 'endDate' | 'endTime'>;
+
+/** Último dia ocupado pelo atendimento (terminar exatamente à meia-noite conta como o dia anterior). */
+export function lastDateOf(a: DatedAppointment): string {
+  return a.endTime === '00:00' && a.endDate > a.date ? shiftDate(a.endDate, -1) : a.endDate;
+}
+
+/** O atendimento ocupa mais de um dia de calendário. */
+export const isMultiDay = (a: DatedAppointment): boolean => lastDateOf(a) !== a.date;
+
+/** O atendimento ocupa a data informada (inclusive dias intermediários). */
+export const coversDate = (a: DatedAppointment, date: string): boolean => a.date <= date && lastDateOf(a) >= date;
+
+/** Todos os dias ocupados, do início ao término. */
+export function datesOf(a: DatedAppointment): string[] {
+  const last = lastDateOf(a);
+  const out: string[] = [];
+  for (let d = a.date; d <= last && out.length < 32; d = shiftDate(d, 1)) out.push(d);
+  return out;
+}

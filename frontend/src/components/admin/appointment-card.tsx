@@ -1,14 +1,17 @@
 'use client';
 
 import type { AppointmentDTO } from '@orts/backend/contracts';
+import { isMultiDay } from '@orts/backend/contracts';
 import { MapPin } from 'lucide-react';
 import { cn } from '@/lib/cn';
-import { formatDurationLabel } from '@/lib/format';
+import { formatDayMonth, formatDurationLabel } from '@/lib/format';
 import { SERVICE_COLOR, StatusBadge } from './status';
 
 /** Cartão de atendimento para listas (celular e resultados de busca). */
-export function AppointmentCard({ a, onOpen, showDate }: { a: AppointmentDTO; onOpen: () => void; showDate?: string }) {
+export function AppointmentCard({ a, onOpen, showDate, day }: { a: AppointmentDTO; onOpen: () => void; showDate?: string; day?: string }) {
   const cancelled = a.status === 'cancelled';
+  // num dia de continuação (começou antes), o horário de início não é deste dia
+  const continued = Boolean(day && day > a.date);
   return (
     <button
       type="button"
@@ -20,8 +23,20 @@ export function AppointmentCard({ a, onOpen, showDate }: { a: AppointmentDTO; on
     >
       <span className={cn('w-1 shrink-0 rounded-full', SERVICE_COLOR[a.serviceType.color])} aria-hidden="true" />
       <span className="flex w-14 shrink-0 flex-col">
-        <span className="tabular text-[16px] font-semibold leading-tight text-ink">{a.startTime}</span>
-        <span className="tabular text-[12px] text-subtle">{a.endTime}</span>
+        {continued ? (
+          <span className="text-[12px] font-semibold uppercase leading-tight tracking-wide text-steel-600">cont.</span>
+        ) : (
+          <span className="tabular text-[16px] font-semibold leading-tight text-ink">{a.startTime}</span>
+        )}
+        {isMultiDay(a) ? (
+          <span className="tabular text-[12px] leading-tight text-subtle">
+            até {formatDayMonth(a.endDate)}
+            <br />
+            {a.endTime}
+          </span>
+        ) : (
+          <span className="tabular text-[12px] text-subtle">{a.endTime}</span>
+        )}
         {showDate && <span className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-steel-600">{showDate}</span>}
       </span>
       <span className="min-w-0 flex-1">
