@@ -23,6 +23,9 @@ import type {
   SessionUser,
   SettingsDTO,
   SettingsInput,
+  SiteReviewDTO,
+  SiteReviewInput,
+  SiteReviewUpdateInput,
 } from '@orts/backend/contracts';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, query } from '@/lib/api';
@@ -41,6 +44,7 @@ export const keys = {
   financeSummary: (month: string) => ['finance', 'summary', month] as const,
   financeEntries: (params: object) => ['finance', 'entries', params] as const,
   financeCategories: ['finance', 'categories'] as const,
+  siteReviews: ['site-reviews'] as const,
 };
 
 export function useMe() {
@@ -273,5 +277,31 @@ export function useDeleteFinanceCategory() {
   return useMutation({
     mutationFn: (id: string) => api.delete<{ deleted: boolean; archived: boolean }>(`/finance/categories/${id}`),
     onSuccess: invalidate,
+  });
+}
+
+/** Avaliações exibidas no site (copiadas do Google). */
+export function useSiteReviews() {
+  return useQuery({
+    queryKey: keys.siteReviews,
+    queryFn: ({ signal }) => api.get<{ reviews: SiteReviewDTO[] }>('/site-reviews', signal).then((r) => r.reviews),
+    staleTime: 60_000,
+  });
+}
+
+export function useSaveSiteReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id?: string; input: SiteReviewInput | SiteReviewUpdateInput }) =>
+      (id ? api.patch<{ review: SiteReviewDTO }>(`/site-reviews/${id}`, input) : api.post<{ review: SiteReviewDTO }>('/site-reviews', input)).then((r) => r.review),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.siteReviews }),
+  });
+}
+
+export function useDeleteSiteReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete<{ ok: true }>(`/site-reviews/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.siteReviews }),
   });
 }

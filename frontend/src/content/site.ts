@@ -171,6 +171,8 @@ export const SITE = {
   title: 'ORTS Climatização · Ar-condicionado em Jaraguá do Sul (SC)',
   /** Outras formas de chamar a empresa (ajudam o Google a ligar as buscas ao site). */
   alternateNames: ['ORTS', 'ORTS Climatização Jaraguá do Sul', 'ORTS Climatização Jaraguá'],
+  /** Perfil da Empresa no Google ("ORTS Climatização Jaraguá"); a variável GOOGLE_PLACE_ID tem prioridade. */
+  googlePlaceId: 'ChIJR3pHzdc2WqcRebkv_7RD1oI',
   description:
     'Instalação, higienização e manutenção preventiva de ar-condicionado em Jaraguá do Sul (SC). Atendimento com horário marcado, acabamento cuidadoso e contato direto pelo WhatsApp.',
   keywords: [

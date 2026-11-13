@@ -29,6 +29,17 @@ export const formatWeekdayShort = (date: string) => fmt({ weekday: 'short' }).fo
 /** "novembro de 2026" */
 export const formatMonthYear = (date: string) => fmt({ month: 'long', year: 'numeric' }).format(toDate(date));
 
+/** Tempo desde um mês (AAAA-MM), como o Google mostra: "há 7 meses", "há 1 ano". */
+export function relativeMonth(month: string, today: string = todayISO()): string {
+  const [y, m] = month.split('-').map(Number) as [number, number];
+  const [ty, tm] = today.split('-').map(Number) as [number, number];
+  const months = (ty - y) * 12 + (tm - m);
+  if (months <= 0) return 'este mês';
+  if (months < 12) return months === 1 ? 'há 1 mês' : `há ${months} meses`;
+  const years = Math.floor(months / 12);
+  return years === 1 ? 'há 1 ano' : `há ${years} anos`;
+}
+
 export const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
 /** "08:00" -> "8h", "08:30" -> "8h30" */

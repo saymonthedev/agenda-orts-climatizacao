@@ -23,7 +23,9 @@ import { cn } from '@/lib/cn';
 import { formatDurationLabel, timeOf } from '@/lib/format';
 import { formatBRL } from '@/lib/money';
 import { FinanceCategoriesManager } from './finance-categories';
+import { Section } from './settings-section';
 import { PageHeader } from './shell';
+import { SiteReviewsManager } from './site-reviews-manager';
 import { SERVICE_COLOR, SERVICE_COLOR_LABEL, ServiceDot } from './status';
 
 const TIME_OPTIONS = Array.from({ length: 38 }, (_, i) => timeOf(5 * 60 + i * 30)).map((t) => ({ value: t, label: t }));
@@ -81,18 +83,6 @@ export function SettingsScreen() {
   );
 }
 
-function Section({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
-  return (
-    <section className="rounded-lg border border-line bg-paper">
-      <div className="border-b border-line px-4 py-4 sm:px-6">
-        <h2 className="text-[16px] font-semibold text-ink">{title}</h2>
-        {description && <p className="mt-0.5 text-[14px] leading-relaxed text-muted">{description}</p>}
-      </div>
-      <div className="p-4 sm:p-6">{children}</div>
-    </section>
-  );
-}
-
 function SettingsTabs({ settings }: { settings: SettingsDTO }) {
   const save = useSaveSettings();
   const [initial] = useState(() => toForm(settings));
@@ -137,6 +127,7 @@ function SettingsTabs({ settings }: { settings: SettingsDTO }) {
     { value: 'servicos', label: 'Serviços' },
     { value: 'financeiro', label: 'Financeiro' },
     { value: 'site', label: 'Dados do site' },
+    { value: 'avaliacoes', label: 'Avaliações' },
     { value: 'acesso', label: 'Acesso' },
   ];
 
@@ -231,7 +222,7 @@ function SettingsTabs({ settings }: { settings: SettingsDTO }) {
                 value={String(form.defaultDurationMinutes)}
                 onChange={(v) => patch({ defaultDurationMinutes: Number(v) })}
                 options={DURATIONS}
-                hint="Usada quando o serviço não define outra duração."
+                hint="Já vem escolhida ao agendar; dá para mudar em cada atendimento."
               />
               <Select
                 label="Intervalo entre atendimentos"
@@ -335,6 +326,9 @@ function SettingsTabs({ settings }: { settings: SettingsDTO }) {
       <Tabs.Content value="servicos" className="outline-none">
         <ServicesManager />
       </Tabs.Content>
+      <Tabs.Content value="avaliacoes" className="outline-none">
+        <SiteReviewsManager />
+      </Tabs.Content>
       <Tabs.Content value="acesso" className="outline-none">
         <PasswordForm />
       </Tabs.Content>
@@ -346,7 +340,7 @@ function ServicesManager() {
   const services = useServices();
   const [editing, setEditing] = useState<ServiceTypeDTO | 'new' | null>(null);
   return (
-    <Section title="Serviços" description="Tipos de atendimento e a duração usada como padrão na agenda.">
+    <Section title="Serviços" description="Tipos de atendimento, com a cor na agenda e o preço sugerido.">
       {services.isLoading ? (
         <Skeleton className="h-40" />
       ) : (
@@ -356,11 +350,9 @@ function ServicesManager() {
               <ServiceDot color={s.color} className="size-3" />
               <div className="min-w-0 flex-1">
                 <p className={cn('truncate text-[15px] font-semibold', s.active ? 'text-ink' : 'text-subtle line-through')}>{s.name}</p>
-                <p className="text-[13px] text-muted">
-                  {formatDurationLabel(s.durationMinutes)}
-                  {s.priceCents != null && ` · ${formatBRL(s.priceCents)}`}
-                  {!s.active && ' · desativado'}
-                </p>
+                {(s.priceCents != null || !s.active) && (
+                  <p className="text-[13px] text-muted">{[s.priceCents != null && formatBRL(s.priceCents), !s.active && 'desativado'].filter(Boolean).join(' · ')}</p>
+                )}
               </div>
               <Button variant="ghost" size="icon-sm" onClick={() => setEditing(s)} aria-label={`Editar ${s.name}`}>
                 <Pencil className="size-4" aria-hidden="true" />
@@ -407,7 +399,6 @@ function ServiceFields({ value, onChange, errors }: { value: ServiceForm; onChan
       <TextField label="Nome" value={value.name} onChange={(e) => onChange({ name: e.target.value })} error={errors.name} maxLength={80} />
       <TextArea label="Descrição" optional rows={2} value={value.description} onChange={(e) => onChange({ description: e.target.value })} maxLength={200} />
       <div className="grid gap-4 sm:grid-cols-2">
-        <Select label="Duração padrão" value={String(value.durationMinutes)} onChange={(v) => onChange({ durationMinutes: Number(v) })} options={DURATIONS} />
         <MoneyField label="Preço sugerido" optional value={value.priceCents} onChange={(priceCents) => onChange({ priceCents })} hint="Já vem preenchido ao registrar o pagamento." />
       </div>
       <fieldset>
